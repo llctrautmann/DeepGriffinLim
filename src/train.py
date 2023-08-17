@@ -104,14 +104,16 @@ class ModelTrainer:
 
 
     def main(self):
+        print(f'Initialising model on {self.device}.')
         if self.load_checkpoint:
             flag = self.loading_checkpoint()
             if flag == 0:
-                print("No checkpoint found")
+                print("No checkpoint found, with self.load_checkpoint=True")
                 print("No training initiated")
                 return 0
             else:
                 print("Checkpoint loaded")
+        print('No checkpoint loaded, weights will be initialised randomly.')
 
         validation_losses = []
         for epoch in range(self.epochs):  

@@ -6,9 +6,11 @@ from train import *
 # Parameter 
 model = DeepGriffinLim(blocks=10)
 
-criterion = nn.L1Loss()
+criterion = nn.L1Loss(reduction='sum')
 optimizer = torch.optim.Adam(model.parameters(), lr=hp.learning_rate, weight_decay=hp.weight_decay)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, min_lr=hp.min_lr, verbose=True)
+
+
 
 TrainingLoop = ModelTrainer(model=model,
                             criterion=criterion,
@@ -19,7 +21,8 @@ TrainingLoop = ModelTrainer(model=model,
                             epochs=hp.epochs,
                             learning_rate=hp.learning_rate,
                             save_path='./src/checkpoints',
-                            debug=True)
+                            debug=True,
+                            device=hp.device)
 
 TrainingLoop.main()
 

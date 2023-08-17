@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import List, Tuple, Dict, Any, Union
+import torch
 
 @dataclass
 class Hyperparameter:
@@ -27,6 +28,7 @@ class Hyperparameter:
     scheduler: Any = field(default=None)
     criterion: Any = field(default=None)
     optimizer: Any = field(default=None)
+    device = device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # save / load model
     save_path: str = './checkpoints/DGL.pth.tar'
