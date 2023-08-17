@@ -8,7 +8,6 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "3.10.1"
 numpy = "^1.24.3"
-torch = "2.0.0"
 matplotlib = "^3.7.1"
 ipykernel = "^6.23.1"
 jupyter = "^1.0.0"
