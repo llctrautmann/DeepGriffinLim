@@ -5,7 +5,7 @@ import pandas as pd
 import torchaudio
 import random
 
-from DGLim.hyperparameter import hp
+from hyperparameter import hp
 
 class AvianNatureSounds(Dataset):
     def __init__(self,

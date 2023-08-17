@@ -1,7 +1,7 @@
-from DGLim.dataset import AvianNatureSounds, ds
-from DGLim.model import *
-from DGLim.hyperparameter import hp
-from DGLim.train import *
+from dataset import AvianNatureSounds, ds
+from model import *
+from hyperparameter import hp
+from train import *
 
 # Parameter 
 model = DeepGriffinLim(blocks=10)
@@ -18,7 +18,8 @@ TrainingLoop = ModelTrainer(model=model,
                             batch_size=hp.batch_size,
                             epochs=hp.epochs,
                             learning_rate=hp.learning_rate,
-                            save_path='DGLim/checkpoints')
+                            save_path='./src/checkpoints',
+                            debug=True)
 
 TrainingLoop.main()
 
