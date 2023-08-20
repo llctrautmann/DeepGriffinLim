@@ -25,7 +25,7 @@ class Hyperparameter:
     weight_decay: float = 0.0001
     learning_rate: float = 5e-4
     min_lr: float = 5e-8
-    epochs: int = 3
+    epochs: int = 1000
     scheduler: Any = field(default=None)
     criterion: Any = field(default=None)
     optimizer: Any = field(default=None)
