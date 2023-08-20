@@ -115,6 +115,7 @@ class ModelTrainer:
                 print("Checkpoint loaded")
         print('No checkpoint loaded, weights will be initialised randomly.')
 
+        self.model = self.model.to(self.device)
         validation_losses = []
         for epoch in range(self.epochs):  
             self.checkpoint = {'state_dict': self.model.state_dict(),'optimizer': self.optimizer.state_dict(), 'epoch': epoch, 'best_loss': self.best_loss}
