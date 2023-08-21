@@ -4,6 +4,8 @@ from torch.utils.data import DataLoader, Subset, random_split
 import torch
 from numpy import inf
 import os
+from torch.utils.tensorboard import SummaryWriter
+import torchvision
 
 class ModelTrainer:
     def __init__(self, model, criterion, optimizer, dataset, batch_size, epochs, learning_rate,min_lr=5e-8, scheduler=None, patience=10, device='cpu', save_path='./checkpoints/', load_path='./checkpoints/', debug=True, save_checkpoint=True, load_checkpoint=False, verbose=True):
@@ -37,9 +39,13 @@ class ModelTrainer:
         self.verbose = verbose
         self.best_loss = inf
 
+        # Tensorboard
+        self.writer = SummaryWriter(f'./tests/runs/debug_run')
+        self.step = 0
+        
         # Init functions
         self.split_datasets()
-
+            
     def split_datasets(self):
         """
         Returns:
@@ -97,6 +103,7 @@ class ModelTrainer:
 
             train_loss += loss.item()
 
+        self.write_to_tensorboard(clear, z_tilda, residual, final)
         return train_loss, final
 
 
@@ -141,21 +148,16 @@ class ModelTrainer:
                 else:
                     self.counter = 0
                     
-        print(validation_losses)
-        return validation_losses
-
-
-        # Insert the testing functionality here
         with torch.no_grad():
             self.model.eval()
             testing_loss = 0
-            for idx, batch in enumerate(self.test_loader):
+            for batch in self.test_loader:
                 clear, noisy, mag, label = batch
                 # Transfer batch to device
-                clear = clear.to(self.device) 
+                clear = clear.to(self.device)
 
                 # Transfer batch to device
-                noisy = noisy.to(self.device) 
+                noisy = noisy.to(self.device)
 
                 # Transfer batch to device
                 mag = mag.to(self.device)
@@ -167,6 +169,7 @@ class ModelTrainer:
                 loss = self.criterion(z_tilda - clear, residual)
                 testing_loss += loss.item()
 
+        return validation_losses
 
     def validate(self):
         self.model.eval()
@@ -175,10 +178,10 @@ class ModelTrainer:
             for idx, batch in enumerate(self.val_loader):
                 clear, noisy, mag, label = batch
                 # Transfer batch to device
-                clear = clear.to(self.device) 
+                clear = clear.to(self.device)
 
                 # Transfer batch to device
-                noisy = noisy.to(self.device) 
+                noisy = noisy.to(self.device)
 
                 # Transfer batch to device
                 mag = mag.to(self.device)
@@ -214,9 +217,27 @@ class ModelTrainer:
         else:
             print(f"No checkpoint found at '{self.load_path}'")
             return 0
+    def write_to_tensorboard(self, clear, z_tilda, residual, final):
+        # Convert the residual tensor to its angle before visualizing
+        residual_angle = torch.angle(residual)
+
+        # Image grid of the Residual Maps
+        residual_grid = torchvision.utils.make_grid(residual_angle.unsqueeze(1))
+
+        # Add the grid to tensorboard
+        self.writer.add_images("Residual Maps", residual_grid, dataformats='NCHW', global_step=self.step)
+        self.step += 1
 
 
-    def write_to_tensorboard(self, writer):
-        # TODO: Implement the tensorboard functionality
-        pass
-    
+
+
+
+
+
+
+
+
+
+
+
+

@@ -6,7 +6,7 @@ from train import *
 # Parameter 
 model = DeepGriffinLim(blocks=10)
 
-criterion = nn.L1Loss(reduction='sum')
+criterion = nn.L1Loss(reduction='sum').to(device=hp.device)
 optimizer = torch.optim.Adam(model.parameters(), lr=hp.learning_rate, weight_decay=hp.weight_decay)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, min_lr=hp.min_lr, verbose=True)
 
