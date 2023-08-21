@@ -1,3 +1,4 @@
+from logging import disable
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 import torch
@@ -117,7 +118,9 @@ class ModelTrainer:
 
         self.model = self.model.to(self.device)
         validation_losses = []
-        for epoch in range(self.epochs):  
+
+        loop = tdqm(range(self.epochs),disable=self.debug)
+        for epoch in loop:
             self.checkpoint = {'state_dict': self.model.state_dict(),'optimizer': self.optimizer.state_dict(), 'epoch': epoch, 'best_loss': self.best_loss}
 
             train_loss, final = self.train()
