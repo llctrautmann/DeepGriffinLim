@@ -115,7 +115,7 @@ class ModelTrainer:
         self.model = self.model.to(self.device)
         validation_losses = []
 
-        loop = tdqm(range(self.epochs),disable=self.debug)
+        loop = tqdm(range(self.epochs), disable=self.debug)
         for epoch in loop:
             self.checkpoint = {'state_dict': self.model.state_dict(),'optimizer': self.optimizer.state_dict(), 'epoch': epoch, 'best_loss': self.best_loss}
 
