@@ -1,6 +1,6 @@
 from logging import disable
 from tqdm import tqdm
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset, random_split
 import torch
 from numpy import inf
 import os
@@ -42,22 +42,18 @@ class ModelTrainer:
 
     def split_datasets(self):
         """
-        This function splits the dataset into training, validation, and test sets.
-        The dataset is first split into a training set (90% of the data) and a test set (10% of the data).
-        The training set is then further split into a training set (90% of the new set) and a validation set (10% of the new set).
-        
         Returns:
             trainset (Dataset): The final training set.
             testset (Dataset): The test set.
         """
 
         if self.debug:
-            subset = torch.utils.data.Subset(self.dataset, range(20))
+            subset = Subset(self.dataset, range(20))
+            trainset, testset = random_split(subset, [0.9, 0.1])
+            trainset, validset = random_split(trainset, [0.9, 0.1])
 
-
-        # trainset, testset = torch.utils.data.random_split(self.dataset, [0.9,0.1])
-        trainset, testset = torch.utils.data.random_split(subset, [0.9,0.1])
-        trainset, validset = torch.utils.data.random_split(trainset, [0.9, 0.1])
+        trainset, testset = random_split(self.dataset, [0.9, 0.1])
+        trainset, validset = random_split(trainset, [0.9, 0.1])
 
         # Create dataloaders
         self.train_loader = DataLoader(trainset, batch_size=self.batch_size, shuffle=True)
