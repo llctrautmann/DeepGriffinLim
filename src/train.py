@@ -51,9 +51,9 @@ class ModelTrainer:
             subset = Subset(self.dataset, range(20))
             trainset, testset = random_split(subset, [0.9, 0.1])
             trainset, validset = random_split(trainset, [0.9, 0.1])
-
-        trainset, testset = random_split(self.dataset, [0.9, 0.1])
-        trainset, validset = random_split(trainset, [0.9, 0.1])
+        else:
+            trainset, testset = random_split(self.dataset, [0.9, 0.1])
+            trainset, validset = random_split(trainset, [0.9, 0.1])
 
         # Create dataloaders
         self.train_loader = DataLoader(trainset, batch_size=self.batch_size, shuffle=True)
@@ -72,10 +72,10 @@ class ModelTrainer:
             clear, noisy, mag, label = batch
 
             # Transfer batch to device
-            clear = clear.to(self.device) 
+            clear = clear.to(self.device)
 
             # Transfer batch to device
-            noisy = noisy.to(self.device) 
+            noisy = noisy.to(self.device)
 
             # Transfer batch to device
             mag = mag.to(self.device)
@@ -130,7 +130,7 @@ class ModelTrainer:
             self.scheduler.step(validation_loss)
 
             # insert early stopping here
-            if  self.optimizer.param_groups[0]['lr'] == self.min_lr:
+            if self.optimizer.param_groups[0]['lr'] == self.min_lr:
                 if validation_loss > self.best_loss:
                     self.counter += 1
                     print(f'Early stopping counter: {self.counter}')
