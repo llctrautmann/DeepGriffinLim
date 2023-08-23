@@ -29,7 +29,8 @@ class Hyperparameter:
     scheduler: Any = field(default=None)
     criterion: Any = field(default=None)
     optimizer: Any = field(default=None)
-    device = device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = 'cuda:1' if torch.cuda.is_available() else 'cpu'
+
 
     # save / load model
     save_path: str = './src/checkpoints/DGL.pth.tar'
