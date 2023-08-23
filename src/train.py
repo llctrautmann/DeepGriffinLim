@@ -1,6 +1,6 @@
 from tqdm import tqdm
 from torch.utils.data import DataLoader, Subset, random_split
-from utils import HealthCheckDashboard
+from utils import HealthCheckDashboard, send_push_notification
 from hyperparameter import hp
 import torch
 from numpy import inf
@@ -133,6 +133,8 @@ class ModelTrainer:
             train_loss, final = self.train()
             validation_loss = self.validate()
             validation_losses.append(validation_loss)
+
+            send_push_notification(epoch, validation_loss)
 
             if validation_loss < self.best_loss:
                 self.best_loss = validation_loss

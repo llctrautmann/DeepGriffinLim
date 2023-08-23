@@ -1,6 +1,8 @@
 import os
+import random
 import torch
-# import shutil
+import http.client, urllib
+from dotenv import load_dotenv
 import librosa
 import numpy as np
 import torchvision
@@ -164,5 +166,24 @@ class HealthCheckDashboard:
 
             self.display_separator()
             break
+
+
+# Monitor the training loss
+# Load .env file
+load_dotenv()
+
+# Get the API key
+APP_TOKEN = os.getenv('APP_TOKEN')
+USER_KEY = os.getenv('USER_KEY')
+
+def send_push_notification(epoch, message):
+    conn = http.client.HTTPSConnection("api.pushover.net:443")
+    conn.request("POST", "/1/messages.json",
+      urllib.parse.urlencode({
+        "token": APP_TOKEN,
+        "user": USER_KEY,
+        "message": f"Epoch {epoch} completed: validation loss = {message}",
+      }), { "Content-type": "application/x-www-form-urlencoded" })
+    response = conn.getresponse()
 
 

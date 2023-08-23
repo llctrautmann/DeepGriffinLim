@@ -18,14 +18,14 @@ class Hyperparameter:
     mel_spectrogram = None
     verbose: bool = False
     fixed_limit: bool = True
-    batch_size: int = 4
+    batch_size: int = 8
     num_workers: int = 1
 
     # Model args
     weight_decay: float = 0.0001
     learning_rate: float = 5e-4
     min_lr: float = 5e-8
-    epochs: int = 1
+    epochs: int = 3
     scheduler: Any = field(default=None)
     criterion: Any = field(default=None)
     optimizer: Any = field(default=None)
