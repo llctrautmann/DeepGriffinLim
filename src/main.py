@@ -22,5 +22,5 @@ TrainingLoop = ModelTrainer(model=model,
                             debug=True,
                             device=hp.device)
 
+TrainingLoop.healthcheck()
 TrainingLoop.main()
-

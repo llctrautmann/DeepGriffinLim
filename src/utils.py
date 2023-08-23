@@ -96,3 +96,63 @@ def clear_folders(*folders):
         print(f"An error occurred: {e}")
 
 
+class HealthCheckDashboard:
+
+    def __init__(self, train_loader, model, writer):
+        self.train_loader = train_loader
+        self.model = model
+        self.writer = writer
+        self.step = 0  # Just a placeholder value. Adjust as needed.
+
+    def format_tensor_details(self, tensor):
+        return f"dim: {str(list(tensor.shape)):<25} dtype: {tensor.dtype}"
+
+    def display_header(self):
+        print("+--------------------------------------------------------------------+")
+        print("|                       HEALTH CHECK DASHBOARD                       |")
+        print("+--------------------------------------------------------------------+")
+
+    def display_tensor_details(self, name, tensor):
+        print(f"| {name:<8} -> {self.format_tensor_details(tensor)}")
+
+    def display_separator(self):
+        print("+--------------------------------------------------------------------+")
+
+    def perform_healthcheck(self):
+        self.display_header()
+
+        for i, batch in enumerate(self.train_loader):
+            clear, noisy, mag, label = batch
+
+            self.display_tensor_details("Clear", clear)
+            self.display_tensor_details("Noisy", noisy)
+            self.display_tensor_details("Mag", mag)
+
+            try:
+                clear_grid = torchvision.utils.make_grid(torch.angle(clear), padding=20)
+                self.writer.add_images("Clear", clear_grid, dataformats='CHW', global_step=self.step)
+            except Exception as e:
+                print(f"| Error    -> {e}")
+
+            self.model.train()
+            z_tilda, residual, final, subblock_out = self.model(x_tilda=noisy, mag=mag)
+
+            self.display_tensor_details("z_tilda", z_tilda)
+            self.display_tensor_details("Residual", residual)
+            self.display_tensor_details("Final", final)
+
+            try:
+                res_grid = torchvision.utils.make_grid(torch.angle(residual), padding=20)
+                final_grid = torchvision.utils.make_grid(torch.angle(final), padding=20)
+                z_tilda_grid = torchvision.utils.make_grid(torch.angle(z_tilda), padding=20)
+
+                self.writer.add_images("z_tilda", z_tilda_grid, dataformats='CHW', global_step=self.step)
+                self.writer.add_images("Final", final_grid, dataformats='CHW', global_step=self.step)
+                self.writer.add_images("Residual", res_grid, dataformats='CHW', global_step=self.step)
+            except Exception as e:
+                print(f"| Error    -> {e}")
+
+            self.display_separator()
+            break
+
+

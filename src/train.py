@@ -1,11 +1,13 @@
-from logging import disable
 from tqdm import tqdm
 from torch.utils.data import DataLoader, Subset, random_split
+from utils import HealthCheckDashboard
+from hyperparameter import hp
 import torch
 from numpy import inf
 import os
 from torch.utils.tensorboard import SummaryWriter
 import torchvision
+import torchaudio
 
 class ModelTrainer:
     def __init__(self, model, criterion, optimizer, dataset, batch_size, epochs, learning_rate,min_lr=5e-8, scheduler=None, patience=10, device='cpu', save_path='./checkpoints/', load_path='./checkpoints/', debug=True, save_checkpoint=True, load_checkpoint=False, verbose=True):
@@ -64,7 +66,7 @@ class ModelTrainer:
         # Create dataloaders
         self.train_loader = DataLoader(trainset, batch_size=self.batch_size, shuffle=True)
         self.val_loader = DataLoader(validset, batch_size=self.batch_size, shuffle=True)
-        self.test_loader = DataLoader(testset, batch_size=self.batch_size, shuffle=True)
+        self.test_loader = DataLoader(testset, batch_size=self.batch_size, shuffle=False)
 
         print(f"Split dataset into {len(trainset)} training samples, {len(validset)} validation samples, and {len(testset)} test samples")
         return None
@@ -103,7 +105,9 @@ class ModelTrainer:
 
             train_loss += loss.item()
 
-        self.write_to_tensorboard(clear, z_tilda, residual, final)
+            if idx == 1:
+                self.write_to_tensorboard(clear, z_tilda, residual, final)
+
         return train_loss, final
 
 
@@ -168,6 +172,8 @@ class ModelTrainer:
                 # Calculate loss
                 loss = self.criterion(z_tilda - clear, residual)
                 testing_loss += loss.item()
+            self.return_audio_sample(final)
+            
 
         return validation_losses
 
@@ -217,27 +223,30 @@ class ModelTrainer:
         else:
             print(f"No checkpoint found at '{self.load_path}'")
             return 0
-    def write_to_tensorboard(self, clear, z_tilda, residual, final):
-        # Convert the residual tensor to its angle before visualizing
-        residual_angle = torch.angle(residual)
+            
 
-        # Image grid of the Residual Maps
-        residual_grid = torchvision.utils.make_grid(residual_angle.unsqueeze(1))
+    def write_to_tensorboard(self, clear, z_tilda, residual, final):
+        # Convert the tensors to angle before visualizing
+        clear_grid = torchvision.utils.make_grid(torch.angle(clear))
+        residual_grid = torchvision.utils.make_grid(torch.angle(residual))
+        z_tilda_grid = torchvision.utils.make_grid(torch.angle(z_tilda))
+        final_grid = torchvision.utils.make_grid(torch.angle(final))
 
         # Add the grid to tensorboard
-        self.writer.add_images("Residual Maps", residual_grid, dataformats='NCHW', global_step=self.step)
+        self.writer.add_images("Clear", clear_grid, dataformats='CHW', global_step=self.step)
+        self.writer.add_images("Residual Maps", residual_grid, dataformats='CHW', global_step=self.step)
+        self.writer.add_images("z_tilda", z_tilda_grid, dataformats='CHW', global_step=self.step)
+        self.writer.add_images("Final", final_grid, dataformats='CHW', global_step=self.step)
         self.step += 1
 
 
+    def healthcheck(self):
+        dashboard = HealthCheckDashboard(self.train_loader, self.model, self.writer)
+        dashboard.perform_healthcheck()
 
-
-
-
-
-
-
-
-
-
-
-
+    def return_audio_sample(self, final):
+        for idx in range(final.shape[0]):
+            sample = final[idx, ...].cpu().detach()
+            path = f'./out/recon_{idx}.wav'
+            wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
+            torchaudio.save(path, wav, hp.sampling_rate)
