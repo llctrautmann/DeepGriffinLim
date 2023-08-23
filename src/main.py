@@ -25,7 +25,7 @@ TrainingLoop = ModelTrainer(model=model,
                             epochs=hp.epochs,
                             learning_rate=hp.learning_rate,
                             save_path='./src/checkpoints',
-                            debug=True,
+                            debug=False,
                             device=hp.device)
 
 # Training loop Execution
