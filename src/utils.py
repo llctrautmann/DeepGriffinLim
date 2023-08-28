@@ -187,3 +187,24 @@ def send_push_notification(epoch, message):
     response = conn.getresponse()
 
 
+@torch.no_grad()
+def resize_signal_length(signal, signal_length):
+    if signal.shape[-1] > signal_length:
+        signal = signal[...,:signal_length]
+        return signal
+
+    elif signal.shape[-1] < signal_length:
+        length_diff = signal_length - signal.shape[-1]
+        prefix = torch.zeros((1,length_diff//2))
+        suffix = torch.zeros((1,length_diff//2))
+        signal = torch.cat([prefix,signal.reshape(1,-1),suffix],dim=1)
+
+        if len(signal[-1]) == signal_length:
+            return signal
+        else:
+            length_diff = signal_length - len(signal[-1])
+            signal = torch.cat([signal,torch.zeros((1,length_diff))],dim=-1)
+            return signal
+    else:
+        return signal
+
