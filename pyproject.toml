@@ -21,6 +21,7 @@ torchvision = "^0.15.2"
 pandas = "^2.0.3"
 ipython = "^8.14.0"
 python-dotenv = "^1.0.0"
+jupyter = "^1.0.0"
 
 
 [build-system]
