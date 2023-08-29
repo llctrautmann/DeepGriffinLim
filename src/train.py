@@ -1,6 +1,6 @@
 from tqdm import tqdm
 from torch.utils.data import DataLoader, Subset, random_split
-from utils import HealthCheckDashboard, send_push_notification, resize_signal_length
+from utils import HealthCheckDashboard, send_push_notification
 from hyperparameter import hp
 import torch
 from numpy import inf
@@ -174,7 +174,7 @@ class ModelTrainer:
                 # Calculate loss
                 loss = self.criterion(z_tilda - clear, residual)
                 testing_loss += loss.item()
-            self.return_audio_sample(clear=clear, final=final)
+            self.return_audio_sample(final)
             
 
         return validation_losses
@@ -229,10 +229,10 @@ class ModelTrainer:
 
     def write_to_tensorboard(self, clear, z_tilda, residual, final):
         # Convert the tensors to angle before visualizing
-        clear_grid = torchvision.utils.make_grid(torch.angle(clear),padding=20)
-        residual_grid = torchvision.utils.make_grid(torch.angle(residual),padding=20)
-        z_tilda_grid = torchvision.utils.make_grid(torch.angle(z_tilda),padding=20)
-        final_grid = torchvision.utils.make_grid(torch.angle(final),padding=20)
+        clear_grid = torchvision.utils.make_grid(torch.angle(clear))
+        residual_grid = torchvision.utils.make_grid(torch.angle(residual))
+        z_tilda_grid = torchvision.utils.make_grid(torch.angle(z_tilda))
+        final_grid = torchvision.utils.make_grid(torch.angle(final))
 
         # Add the grid to tensorboard
         self.writer.add_images("Clear", clear_grid, dataformats='CHW', global_step=self.step)
@@ -246,20 +246,9 @@ class ModelTrainer:
         dashboard = HealthCheckDashboard(self.train_loader, self.model, self.writer)
         dashboard.perform_healthcheck()
 
-    def return_audio_sample(self, clear, final, length=hp.length * hp.sampling_rate):
-        '''
-        Convert clear and reconstruction to audio and save to disk
-        '''
-        for idx in range(clear.shape[0]):
-            sample = clear[idx, ...].cpu().detach()
-            path = f'./out/clear_{idx}.wav'
-            wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
-            wav = resize_signal_length(wav, length)
-            torchaudio.save(path, wav, hp.sampling_rate)
-
+    def return_audio_sample(self, final):
         for idx in range(final.shape[0]):
             sample = final[idx, ...].cpu().detach()
             path = f'./out/recon_{idx}.wav'
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
-            wav = resize_signal_length(wav, length)
             torchaudio.save(path, wav, hp.sampling_rate)
