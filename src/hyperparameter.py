@@ -10,8 +10,8 @@ class Hyperparameter:
     root_dir: str = './data/UK_BIRD/'
     key: str = 'habitat'
     mode: str = 'stft'
-    length: int = 5
-    sampling_rate: int = 44100
+    length: int = 10
+    sampling_rate: int = 48000
     n_fft: int = 1024
     hop_length: int = 512
     downsample: bool = True
