@@ -128,9 +128,6 @@ class ModelTrainer:
                 # Transfer batch to device
                 mag = mag.to(self.device)
 
-                print(torch.sum(mag))
-                print(len(self.val_loader))
-
                 # Forward pass
                 z_tilda, residual, final, subblock_out = self.model(x_tilda=noisy, mag=mag)
 
