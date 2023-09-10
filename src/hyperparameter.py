@@ -11,7 +11,7 @@ class Hyperparameter:
     key: str = 'habitat'
     mode: str = 'stft'
     length: int = 10
-    sampling_rate: int = 48000
+    sampling_rate: int = 44100
     n_fft: int = 1024
     hop_length: int = 512
     downsample: bool = True
@@ -25,7 +25,7 @@ class Hyperparameter:
     weight_decay: float = 0.0001
     learning_rate: float = 5e-4
     min_lr: float = 5e-8
-    epochs: int = 25
+    epochs: int = 3
     scheduler: Any = field(default=None)
     criterion: Any = field(default=None)
     optimizer: Any = field(default=None)
