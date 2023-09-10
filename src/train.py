@@ -1,6 +1,6 @@
 from tqdm import tqdm
 from torch.utils.data import DataLoader, Subset, random_split
-from utils import HealthCheckDashboard, send_push_notification, resize_signal_length
+from utils import HealthCheckDashboard, send_push_notification, resize_signal_length, visualize_tensor
 from hyperparameter import hp
 import torch
 from numpy import inf
@@ -64,12 +64,12 @@ class ModelTrainer:
             trainset, validset = random_split(trainset, [0.9, 0.1])
 
         # Create dataloaders
-        self.train_loader = DataLoader(trainset, batch_size=self.batch_size, shuffle=True)
-        self.val_loader = DataLoader(validset, batch_size=self.batch_size, shuffle=True)
-        self.test_loader = DataLoader(testset, batch_size=self.batch_size, shuffle=False)
+        self.train_loader = DataLoader(trainset, batch_size=self.batch_size, shuffle=True,pin_memory=True)
+        self.val_loader = DataLoader(validset, batch_size=self.batch_size, shuffle=False,pin_memory=True)
+        self.test_loader = DataLoader(testset, batch_size=self.batch_size, shuffle=False,pin_memory=True)
 
         print(f"Split dataset into {len(trainset)} training samples, {len(validset)} validation samples, and {len(testset)} test samples")
-        return None
+        return trainset, validset, testset
 
     
     def train(self):
@@ -92,7 +92,9 @@ class ModelTrainer:
             z_tilda, residual, final, subblock_out = self.model(x_tilda=noisy, mag=mag)
 
             # Calculate loss
-            loss = self.criterion(z_tilda - clear, residual)
+            # loss = self.criterion(z_tilda - clear, residual)
+
+            loss = self.von_mises_loss(torch.angle(clear), torch.angle(final))
 
             # Backward pass
             self.optimizer.zero_grad()
@@ -109,6 +111,55 @@ class ModelTrainer:
                 self.write_to_tensorboard(clear, z_tilda, residual, final)
 
         return train_loss, final
+
+
+    def validate(self):
+        self.model.eval()
+        validation_loss = 0
+        with torch.no_grad():
+            for idx, val_batch in enumerate(self.val_loader):
+                clear, noisy, mag, label = val_batch
+                # Transfer batch to device
+                clear = clear.to(self.device)
+
+                # Transfer batch to device
+                noisy = noisy.to(self.device)
+
+                # Transfer batch to device
+                mag = mag.to(self.device)
+
+                print(torch.sum(mag))
+                print(len(self.val_loader))
+
+                # Forward pass
+                z_tilda, residual, final, subblock_out = self.model(x_tilda=noisy, mag=mag)
+
+                # Calculate loss
+                loss = self.criterion(z_tilda - clear, residual)
+                validation_loss += loss.item()
+
+            visualize_tensor(clear,key='clear',step=self.step)
+            visualize_tensor(final,key='final',step=self.step)
+
+        return validation_loss
+
+    def von_mises_loss(self, y_true, y_pred):
+        """
+        Von Mises loss function.
+
+        Args:
+        y_true (Tensor): Tensor of true values.
+        y_pred (Tensor): Tensor of predicted values.
+
+        Returns:
+        Tensor: Loss value.
+        """
+        # Ensure predictions are in range [-pi, pi]
+        y_pred = torch.atan2(torch.sin(y_pred), torch.cos(y_pred))
+
+        # Compute von Mises loss
+        loss = 1 - torch.cos(y_pred - y_true)
+        return torch.mean(loss)
 
 
     def main(self):
@@ -134,7 +185,8 @@ class ModelTrainer:
             validation_loss = self.validate()
             validation_losses.append(validation_loss)
 
-            send_push_notification(epoch, validation_loss)
+            if not self.debug:
+                send_push_notification(epoch, validation_loss)
 
             if validation_loss < self.best_loss:
                 self.best_loss = validation_loss
@@ -175,33 +227,7 @@ class ModelTrainer:
                 loss = self.criterion(z_tilda - clear, residual)
                 testing_loss += loss.item()
             self.return_audio_sample(clear=clear, final=final)
-            
-
         return validation_losses
-
-    def validate(self):
-        self.model.eval()
-        validation_loss = 0
-        with torch.no_grad():
-            for idx, batch in enumerate(self.val_loader):
-                clear, noisy, mag, label = batch
-                # Transfer batch to device
-                clear = clear.to(self.device)
-
-                # Transfer batch to device
-                noisy = noisy.to(self.device)
-
-                # Transfer batch to device
-                mag = mag.to(self.device)
-
-                # Forward pass
-                z_tilda, residual, final, subblock_out = self.model(x_tilda=noisy, mag=mag)
-
-                # Calculate loss
-                loss = self.criterion(z_tilda - clear, residual)
-                validation_loss += loss.item()
-
-        return validation_loss
 
 
     def saving_checkpoint(self):
@@ -263,3 +289,7 @@ class ModelTrainer:
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
             torchaudio.save(path, wav, hp.sampling_rate)
+
+
+
+        print('Training complete')
