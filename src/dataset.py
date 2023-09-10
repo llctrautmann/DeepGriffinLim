@@ -38,6 +38,7 @@ class AvianNatureSounds(Dataset):
         self.downsample = downsample
         self.sampling_rate = sampling_rate
         self.signal_length = None
+        self.offset = 'random'
         self.griffin_lim = torchaudio.transforms.GriffinLim(
             n_fft=self.n_fft,
             win_length=self.n_fft,
@@ -64,8 +65,7 @@ class AvianNatureSounds(Dataset):
                 pass
 
             # Clip the signal to the desired length
-            signal = self.clip(signal, sr, self.length)
-            # print(f'{signal.shape} = clipped signal shape')
+            signal = self.clip(signal, sr, self.length, offset='random')
 
             stft = torch.stft(
                 signal,
@@ -93,24 +93,44 @@ class AvianNatureSounds(Dataset):
             noisy_sig = stft + K * noise
             magnitude = torch.abs(stft)
 
-            random_noise = noise_real *j + noise_imag
+            random_noise = torch.complex(noise_real, noise_imag)
             gla_pretrain = self.griffin_lim(torch.abs(stft) ** 2)
 
-            if true:
+            if True:
                 return stft, noisy_sig, magnitude, label
             else:
                 return stft, noisy_sig, magnitude, randon_noise, gla_pretrain, label
 
-    @staticmethod
     @torch.no_grad()
-    def clip(audio_signal, sr, desired_length):
+    def clip(self, audio_signal, sr, desired_length, offset=None):
+        """
+        Clips an audio signal to a desired length.
+
+        Args:
+        audio_signal (Tensor): Tensor of shape (..., time) representing the waveform to be clipped.
+        sr (int): Sampling rate of the audio signal.
+        desired_length (float): Desired length of the audio signal in seconds.
+        offset (int, optional): Starting point of the clip in the audio signal. If None, a random offset is chosen. If 'start', the clip starts from the beginning of the audio signal.
+
+        Returns:
+        Tensor: Clipped audio signal.
+        """
         sig_len = audio_signal.shape[1]
         length = int(sr * desired_length)
         if sig_len > length:
-            offset = random.randint(0, sig_len - length)
-            audio_signal = audio_signal[:, offset : (offset + length)]
+            if self.offset == 'random':
+                offset = random.randint(0, sig_len - length)
+                self.offset = offset
+                audio_signal = audio_signal[:, offset : (offset + length)]
+                return audio_signal
+            else:
+                audio_signal = audio_signal[:, self.offset : (self.offset + length)]
+                return audio_signal
+
+        elif offset == 'start':
+            audio_signal = audio_signal[:, :length]
             return audio_signal
-        else:
+        elif offset == 'all':
             return audio_signal
 
     @staticmethod
