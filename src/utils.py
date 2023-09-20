@@ -121,7 +121,7 @@ def resize_signal_length(signal, signal_length):
     else:
         return signal
 
-def visualize_tensor(tensor, key, step):
+def visualize_tensor(tensor, key, loss, step):
 
     if len(tensor.shape) == 4:
         tensor = tensor[0][0].detach().cpu()
@@ -149,6 +149,42 @@ def visualize_tensor(tensor, key, step):
         output_dir = './out/img'
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-        plt.savefig(f'{output_dir}/im_{step}_{key}.png')
+        plt.savefig(f'{output_dir}/im_{step}_{key}_type_{loss}.png')
+        plt.close()
+
+def plot_spectrograms(batch: torch.Tensor, width=10, height=3,epoch=0):
+    plt.figure(figsize=(width, height))
+    librosa.display.specshow(batch[0][0].numpy(),
+                            sr=44100,
+                            x_axis='time',
+                            y_axis='linear'
+                            )
+    plt.colorbar(format="%+2.f")
+    plt.savefig(f'./out/img/img_epoch_{epoch}.png')
+    plt.close()
+
+def save_reconstruction(model,step):
+    file = librosa.load('./data/UK_BIRD/BALMER-01_0_20150621_0515.wav', sr=44100)[0]
+
+
+    file = file[:5 * 44100]
+    stft = torch.stft(torch.from_numpy(file), n_fft=1024, hop_length=512, return_complex=True)
+
+    amptodb = torchaudio.transforms.AmplitudeToDB()
+    mag = amptodb(torch.abs(stft))
+    phase = torch.angle(stft)
+
+    mag = mag.unsqueeze_(0).unsqueeze_(0)
+    phase = phase.unsqueeze_(0).unsqueeze_(0)
+
+    random_phase = torch.rand_like(phase, dtype=torch.complex64)
+    random_phase = stft + random_phase # denioses an existing signal
+
+    model.eval()
+    z_tilda, residual, final, subblock_out = model(x_tilda=random_phase, mag=mag)
+
+    final_phase = torch.angle(final)
+    plot_spectrograms(final_phase.detach(),epoch=step)
+
 
 

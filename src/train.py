@@ -1,6 +1,6 @@
 from tqdm import tqdm
 from torch.utils.data import DataLoader, Subset, random_split
-from utils import HealthCheckDashboard, send_push_notification, resize_signal_length, visualize_tensor
+from utils import HealthCheckDashboard, send_push_notification, resize_signal_length, visualize_tensor, save_reconstruction
 from hyperparameter import hp
 import torch
 from numpy import inf
@@ -8,9 +8,11 @@ import os
 from torch.utils.tensorboard import SummaryWriter
 import torchvision
 import torchaudio
+import math
+
 
 class ModelTrainer:
-    def __init__(self, model, criterion, optimizer, dataset, batch_size, epochs, learning_rate,min_lr=5e-8, scheduler=None, patience=10, device='cpu', save_path='./checkpoints/', load_path='./checkpoints/', debug=True, save_checkpoint=True, load_checkpoint=False, verbose=True):
+    def __init__(self, model, criterion, optimizer, dataset, batch_size, epochs, learning_rate, loss_type='phase', min_lr=5e-8, scheduler=None, patience=10, device='cpu', save_path='./checkpoints/', load_path='./checkpoints/', debug=True, save_checkpoint=True, load_checkpoint=False, verbose=True):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
@@ -30,6 +32,8 @@ class ModelTrainer:
         self.epochs = epochs
         self.learning_rate = learning_rate
         self.min_lr = min_lr
+        self.loss_type = loss_type
+
 
         # Checkpoint parameters
         self.checkpoint = None
@@ -40,6 +44,7 @@ class ModelTrainer:
         self.debug = debug
         self.verbose = verbose
         self.best_loss = inf
+
 
         # Tensorboard
         self.writer = SummaryWriter(f'./tests/runs/debug_run')
@@ -94,7 +99,30 @@ class ModelTrainer:
             # Calculate loss
             # loss = self.criterion(z_tilda - clear, residual)
 
-            loss = self.von_mises_loss(torch.angle(clear), torch.angle(final))
+
+            ### Phase loss, and GD loss and IF loss
+
+            # Create derivatives
+            gdl_clear = self.create_derivative(torch.angle(clear), dire='gdl')
+            gdl_final = self.create_derivative(torch.angle(final), dire='gdl')
+
+            ifr_clear = self.create_derivative(torch.angle(clear), dire='ifr')
+            ifr_final = self.create_derivative(torch.angle(final), dire='ifr')
+
+            # Calculate loss
+
+            if self.loss_type == 'phase':
+                loss = self.von_mises_loss(torch.angle(clear), torch.angle(final))
+            elif self.loss_type == 'gdl':
+                loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + self.von_mises_loss(gdl_clear, gdl_final)
+
+            elif self.loss_type == 'ifr':
+                loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + self.von_mises_loss(ifr_clear, ifr_final)
+
+            elif self.loss_type == 'all':
+                loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + \
+                        self.von_mises_loss(gdl_clear, gdl_final) + \
+                        self.von_mises_loss(ifr_clear, ifr_final) 
 
             # Backward pass
             self.optimizer.zero_grad()
@@ -135,29 +163,12 @@ class ModelTrainer:
                 loss = self.criterion(z_tilda - clear, residual)
                 validation_loss += loss.item()
 
-            visualize_tensor(clear,key='clear',step=self.step)
-            visualize_tensor(final,key='final',step=self.step)
+            
+            #save_reconstruction(self.model,step=self.step)
+            visualize_tensor(clear,key='clear',step=self.step, loss=self.loss_type)
+            visualize_tensor(final,key='final',step=self.step, loss=self.loss_type)
 
         return validation_loss
-
-    def von_mises_loss(self, y_true, y_pred):
-        """
-        Von Mises loss function.
-
-        Args:
-        y_true (Tensor): Tensor of true values.
-        y_pred (Tensor): Tensor of predicted values.
-
-        Returns:
-        Tensor: Loss value.
-        """
-        # Ensure predictions are in range [-pi, pi]
-        y_pred = torch.atan2(torch.sin(y_pred), torch.cos(y_pred))
-
-        # Compute von Mises loss
-        loss = 1 - torch.cos(y_pred - y_true)
-        return torch.mean(loss)
-
 
     def main(self):
         print(f'Initialising model on {self.device}.')
@@ -224,6 +235,7 @@ class ModelTrainer:
                 loss = self.criterion(z_tilda - clear, residual)
                 testing_loss += loss.item()
             self.return_audio_sample(clear=clear, final=final)
+
         return validation_losses
 
 
@@ -248,6 +260,24 @@ class ModelTrainer:
         else:
             print(f"No checkpoint found at '{self.load_path}'")
             return 0
+
+    def von_mises_loss(self, y_true, y_pred):
+        """
+        Von Mises loss function.
+
+        Args:
+        y_true (Tensor): Tensor of true values.
+        y_pred (Tensor): Tensor of predicted values.
+
+        Returns:
+        Tensor: Loss value.
+        """
+        # Ensure predictions are in range [-pi, pi]
+        y_pred = torch.atan2(torch.sin(y_pred), torch.cos(y_pred))
+
+        # Compute von Mises loss
+        loss = 1 - torch.cos(y_pred - y_true)
+        return torch.mean(loss)
             
 
     def write_to_tensorboard(self, clear, z_tilda, residual, final):
@@ -275,18 +305,44 @@ class ModelTrainer:
         '''
         for idx in range(clear.shape[0]):
             sample = clear[idx, ...].cpu().detach()
-            path = f'./out/clear_{idx}.wav'
+            path = f'./out/clear_{idx}_type_{self.loss_type}.wav'
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
             torchaudio.save(path, wav, hp.sampling_rate)
 
         for idx in range(final.shape[0]):
             sample = final[idx, ...].cpu().detach()
-            path = f'./out/recon_{idx}.wav'
+            path = f'./out/recon_{idx}_type_{self.loss_type}.wav'
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
             torchaudio.save(path, wav, hp.sampling_rate)
-
-
-
         print('Training complete')
+
+    @staticmethod
+    def create_derivative(tensor: torch.tensor, dire: 'str'):
+
+        def wrap_to_pi(x):
+            # Wrap value to [-pi, pi)
+            x += 2 * torch.tensor(math.pi) * 1e6
+            x %= 2 * torch.tensor(math.pi)
+            return torch.where(x >= torch.tensor(math.pi), x - 2 * torch.tensor(math.pi), x)  
+
+        if dire == 'gdl':
+            new_matrix = []
+            for i in range(0, tensor.shape[2]-1):
+                new_matrix.append(-tensor[:,:,i+1,:]+tensor[:,:,i,:])
+            new_matrix.append(tensor[:,:,-1,:])
+            new_matrix = torch.stack(new_matrix, dim=2)
+            new_matrix = wrap_to_pi(new_matrix)
+
+            return new_matrix
+        elif dire == 'ifr':
+            tensor = tensor.permute(0,1,3,2)
+            new_matrix = []
+            for i in range(0, tensor.shape[2]-1):
+                new_matrix.append(-tensor[:,:,i+1,:]+tensor[:,:,i,:])
+            new_matrix.append(tensor[:,:,-1,:])
+            new_matrix = torch.stack(new_matrix, dim=2)
+            new_matrix = wrap_to_pi(new_matrix)
+
+            return new_matrix.permute(0,1,3,2)
