@@ -94,12 +94,12 @@ class AvianNatureSounds(Dataset):
             magnitude = torch.abs(stft)
 
             random_noise = torch.complex(noise_real, noise_imag)
-            gla_pretrain = self.griffin_lim(torch.abs(stft) ** 2)
 
-            if True:
+
+            if hp.mode == 'noisy':
                 return stft, noisy_sig, magnitude, label
             else:
-                return stft, noisy_sig, magnitude, randon_noise, gla_pretrain, label
+                return stft, random_noise, magnitude, label
 
     @torch.no_grad()
     def clip(self, audio_signal, sr, desired_length, offset=None):
