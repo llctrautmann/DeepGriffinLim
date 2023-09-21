@@ -96,7 +96,7 @@ class AvianNatureSounds(Dataset):
             random_noise = torch.complex(noise_real, noise_imag)
 
 
-            if hp.mode == 'noisy':
+            if hp.data_mode == 'denoise':
                 return stft, noisy_sig, magnitude, label
             else:
                 return stft, random_noise, magnitude, label

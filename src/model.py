@@ -4,10 +4,11 @@
 # Load libraries
 import torch 
 import torch.nn as nn
+from hyperparameter import hp
 
 # Define the GLU (Gated Linear Unit) class
 class convGLU(nn.Module):
-    def __init__(self, in_channels=3, out_channels=1, kernel_size=(7,7), padding='same', batchnorm=False):
+    def __init__(self, in_channels=3, out_channels=1, kernel_size=(7,7), padding='same', batchnorm=hp.batchnorm):
         super().__init__()
         if padding == 'same':
             padding = (kernel_size[0]//2, kernel_size[1]//2)

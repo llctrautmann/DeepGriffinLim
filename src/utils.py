@@ -146,7 +146,7 @@ def visualize_tensor(tensor, key, loss, step):
         fig.colorbar(im2, ax=axs[1])
 
         # Save the plot to a file in a specified folder
-        output_dir = './out/img'
+        output_dir = f'./out/{loss}/img'
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
         plt.savefig(f'{output_dir}/im_{step}_{key}_type_{loss}.png')
@@ -160,6 +160,7 @@ def plot_spectrograms(batch: torch.Tensor, width=10, height=3,epoch=0):
                             y_axis='linear'
                             )
     plt.colorbar(format="%+2.f")
+
     plt.savefig(f'./out/img/img_epoch_{epoch}.png')
     plt.close()
 

@@ -305,14 +305,14 @@ class ModelTrainer:
         '''
         for idx in range(clear.shape[0]):
             sample = clear[idx, ...].cpu().detach()
-            path = f'./out/clear_{idx}_type_{self.loss_type}.wav'
+            path = f'./out/{self.loss_type}/clear_{idx}_type_{self.loss_type}.wav'
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
             torchaudio.save(path, wav, hp.sampling_rate)
 
         for idx in range(final.shape[0]):
             sample = final[idx, ...].cpu().detach()
-            path = f'./out/recon_{idx}_type_{self.loss_type}.wav'
+            path = f'./out/{self.loss_type}/recon_{idx}_type_{self.loss_type}.wav'
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
             torchaudio.save(path, wav, hp.sampling_rate)
