@@ -10,7 +10,7 @@ class Hyperparameter:
     root_dir: str = './data/EC_BIRD/'
     key: str = 'habitat'
     mode: str = 'stft'
-    length: int = 3
+    length: int = 10
     sampling_rate: int = 44100
     n_fft: int = 1024
     hop_length: int = 512
@@ -26,7 +26,7 @@ class Hyperparameter:
     weight_decay: float = 0.0001
     learning_rate: float = 5e-4
     min_lr: float = 5e-8
-    epochs: int = 5
+    epochs: int = 10
     model_depth: int = 5
     data_mode = 'denoise'
     loss_type: str = 'phase'
