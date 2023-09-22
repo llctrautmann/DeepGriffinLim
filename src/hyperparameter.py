@@ -10,7 +10,7 @@ class Hyperparameter:
     root_dir: str = './data/EC_BIRD/'
     key: str = 'habitat'
     mode: str = 'stft'
-    length: int = 5
+    length: int = 3
     sampling_rate: int = 44100
     n_fft: int = 1024
     hop_length: int = 512
@@ -19,16 +19,16 @@ class Hyperparameter:
     verbose: bool = False
     fixed_limit: bool = True
     batch_size: int = 8
-    batchnorm: bool = True
+    batchnorm: bool = False
     num_workers: int = 1
 
     # Model args
     weight_decay: float = 0.0001
-    learning_rate: float = 3e-4
+    learning_rate: float = 5e-4
     min_lr: float = 5e-8
-    epochs: int = 25
+    epochs: int = 5
     model_depth: int = 5
-    data_mode = 'random'
+    data_mode = 'denoise'
     loss_type: str = 'phase'
     scheduler: Any = field(default=None)
     criterion: Any = field(default=None)

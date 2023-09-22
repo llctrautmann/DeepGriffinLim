@@ -16,9 +16,9 @@ optimizer = torch.optim.Adam(model.parameters(), lr=hp.learning_rate, weight_dec
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, min_lr=hp.min_lr, verbose=True)
 
 # Training loop
+# loss_types = ['L1','phase', 'gdl', 'ifr', 'all']
+loss_types = ['gdl', 'ifr', 'all']
 
-loss_types = ['phase']
-# loss_types = ['phase', 'gdl', 'ifr', 'all']
 
 for loss_type in loss_types:
     TrainingLoop = ModelTrainer(model=model,

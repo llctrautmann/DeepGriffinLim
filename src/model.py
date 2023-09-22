@@ -126,23 +126,22 @@ class DeepGriffinLim(nn.Module):
             Tuple[Tensor]: Output of the forward pass.
         """
         subblock_out = []
-        for _ in range(added_depth):
-            for subblock in self.dnn_blocks:
-                # Perform magnitude swapping and STFT on the input signal
-                y_tilda = self.magswap(mag=mag,x_tilda=x_tilda)
-                z_tilda = self.stft(self.istft(y_tilda.squeeze(1)))
+        for subblock in self.dnn_blocks:
+            # Perform magnitude swapping and STFT on the input signal
+            y_tilda = self.magswap(mag=mag,x_tilda=x_tilda)
+            z_tilda = self.stft(self.istft(y_tilda.squeeze(1)))
 
-                # Transform the input signal to float and concatenate with the magnitude
-                dnn_in = self.transform_to_float([x_tilda, y_tilda, z_tilda.unsqueeze(1)])
-                dnn_in = torch.cat([dnn_in, mag], dim=1)
+            # Transform the input signal to float and concatenate with the magnitude
+            dnn_in = self.transform_to_float([x_tilda, y_tilda, z_tilda.unsqueeze(1)])
+            dnn_in = torch.cat([dnn_in, mag], dim=1)
 
-                # Perform forward pass of the DNN
-                dnn_out = subblock(dnn_in)
-                residual  = torch.complex(dnn_out[:,0,...], dnn_out[:,1,...])
+            # Perform forward pass of the DNN
+            dnn_out = subblock(dnn_in)
+            residual  = torch.complex(dnn_out[:,0,...], dnn_out[:,1,...])
 
-                # Update the input signal for the next iteration
-                x_tilda = (z_tilda - residual).unsqueeze_(1)
-                subblock_out.append(residual)
+            # Update the input signal for the next iteration
+            x_tilda = (z_tilda - residual).unsqueeze_(1)
+            subblock_out.append(residual)
 
         # Perform final magnitude swapping on the input signal
         final = self.magswap(mag=mag,x_tilda=x_tilda)

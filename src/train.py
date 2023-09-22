@@ -111,7 +111,9 @@ class ModelTrainer:
 
             # Calculate loss
 
-            if self.loss_type == 'phase':
+            if self.loss_type == 'L1':
+                loss = self.criterion(z_tilda - clear, residual)
+            elif self.loss_type == 'phase':
                 loss = self.von_mises_loss(torch.angle(clear), torch.angle(final))
             elif self.loss_type == 'gdl':
                 loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + self.von_mises_loss(gdl_clear, gdl_final)
@@ -160,7 +162,30 @@ class ModelTrainer:
                 z_tilda, residual, final, subblock_out = self.model(x_tilda=noisy, mag=mag)
 
                 # Calculate loss
-                loss = self.criterion(z_tilda - clear, residual)
+
+                # Create Phase + Derivatives
+                gdl_clear = self.create_derivative(torch.angle(clear), dire='gdl')
+                gdl_final = self.create_derivative(torch.angle(final), dire='gdl')
+
+                ifr_clear = self.create_derivative(torch.angle(clear), dire='ifr')
+                ifr_final = self.create_derivative(torch.angle(final), dire='ifr')
+
+                # Calculate loss
+                if self.loss_type == 'L1':
+                    loss = self.criterion(z_tilda - clear, residual)
+                elif self.loss_type == 'phase':
+                    loss = self.von_mises_loss(torch.angle(clear), torch.angle(final))
+                elif self.loss_type == 'gdl':
+                    loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + self.von_mises_loss(gdl_clear, gdl_final)
+
+                elif self.loss_type == 'ifr':
+                    loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + self.von_mises_loss(ifr_clear, ifr_final)
+
+                elif self.loss_type == 'all':
+                    loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + \
+                            self.von_mises_loss(gdl_clear, gdl_final) + \
+                            self.von_mises_loss(ifr_clear, ifr_final) 
+
                 validation_loss += loss.item()
 
             
@@ -231,8 +256,30 @@ class ModelTrainer:
                 # Forward pass
                 z_tilda, residual, final, subblock_out = self.model(x_tilda=noisy, mag=mag)
 
+                # Create Phase + Derivatives
+                gdl_clear = self.create_derivative(torch.angle(clear), dire='gdl')
+                gdl_final = self.create_derivative(torch.angle(final), dire='gdl')
+
+                ifr_clear = self.create_derivative(torch.angle(clear), dire='ifr')
+                ifr_final = self.create_derivative(torch.angle(final), dire='ifr')
+
+
                 # Calculate loss
-                loss = self.criterion(z_tilda - clear, residual)
+                if self.loss_type == 'L1':
+                    loss = self.criterion(z_tilda - clear, residual)
+                elif self.loss_type == 'phase':
+                    loss = self.von_mises_loss(torch.angle(clear), torch.angle(final))
+                elif self.loss_type == 'gdl':
+                    loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + self.von_mises_loss(gdl_clear, gdl_final)
+
+                elif self.loss_type == 'ifr':
+                    loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + self.von_mises_loss(ifr_clear, ifr_final)
+
+                elif self.loss_type == 'all':
+                    loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + \
+                            self.von_mises_loss(gdl_clear, gdl_final) + \
+                            self.von_mises_loss(ifr_clear, ifr_final) 
+
                 testing_loss += loss.item()
             self.return_audio_sample(clear=clear, final=final)
 
