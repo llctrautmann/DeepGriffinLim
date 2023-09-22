@@ -26,7 +26,7 @@ class Hyperparameter:
     weight_decay: float = 0.0001
     learning_rate: float = 5e-4
     min_lr: float = 5e-8
-    epochs: int = 10
+    epochs: int = 15
     model_depth: int = 5
     data_mode = 'denoise'
     loss_type: str = 'phase'

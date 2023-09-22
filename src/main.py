@@ -7,23 +7,16 @@ from utils import seed_everything
 # Seed everything for reproducibility
 seed_everything()
 
-# Model  
-model = DeepGriffinLim(blocks=hp.model_depth)
-
-
-
 # Training loop
-# loss_types = ['L1', 'phase', 'gdl', 'ifr', 'all'] 
-# loss_types = ['gdl', 'ifr', 'all']
-loss_types = ['gdl']
-
+loss_types = ['L1', 'phase', 'gdl', 'ifr', 'all'] 
 
 for loss_type in loss_types:
     # Criterion, optimizer, scheduler
+    model = DeepGriffinLim(blocks=hp.model_depth)
     criterion = nn.L1Loss(reduction='sum').to(device=hp.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=hp.learning_rate, weight_decay=hp.weight_decay)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, min_lr=hp.min_lr, verbose=True)
-    
+
     TrainingLoop = ModelTrainer(model=model,
                                 criterion=criterion,
                                 optimizer=optimizer,
