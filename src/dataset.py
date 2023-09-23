@@ -95,9 +95,13 @@ class AvianNatureSounds(Dataset):
 
             random_noise = torch.complex(noise_real, noise_imag)
 
+            # Perform Griffin-Lim reconstruction
+            gla_pretrain = torch.stft(self.griffin_lim(magnitude),n_fft=1024,hop_length=512,return_complex=True)
 
             if hp.data_mode == 'denoise':
                 return stft, noisy_sig, magnitude, label
+            elif hp.data_mode == 'gla-pretrain':
+                return stft, gla_pretrain , magnitude, label
             else:
                 return stft, random_noise, magnitude, label
 

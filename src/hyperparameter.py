@@ -28,7 +28,7 @@ class Hyperparameter:
     min_lr: float = 5e-8
     epochs: int = 15
     model_depth: int = 5
-    data_mode = 'denoise'
+    data_mode = 'gla-pretrain'
     loss_type: str = 'phase'
     scheduler: Any = field(default=None)
     criterion: Any = field(default=None)
