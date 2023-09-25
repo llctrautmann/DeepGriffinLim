@@ -281,7 +281,7 @@ class ModelTrainer:
                             self.von_mises_loss(ifr_clear, ifr_final) 
 
                 testing_loss += loss.item()
-            self.return_audio_sample(clear=clear, final=final)
+            self.return_audio_sample(clear=clear,noisy_signal=noisy, final=final)
 
         return validation_losses
 
@@ -346,7 +346,7 @@ class ModelTrainer:
         dashboard = HealthCheckDashboard(self.train_loader, self.model, self.writer)
         dashboard.perform_healthcheck()
 
-    def return_audio_sample(self, clear, final, length=hp.length * hp.sampling_rate):
+    def return_audio_sample(self, noisy_signal, clear, final, length=hp.length * hp.sampling_rate):
         '''
         Convert clear and reconstruction to audio and save to disk
         '''
@@ -360,6 +360,14 @@ class ModelTrainer:
         for idx in range(final.shape[0]):
             sample = final[idx, ...].cpu().detach()
             path = f'./out/{self.loss_type}/recon_{idx}_type_{self.loss_type}.wav'
+            wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
+            wav = resize_signal_length(wav, length)
+            torchaudio.save(path, wav, hp.sampling_rate)
+
+
+        for idx in range(noisy_signal.shape[0]):
+            sample = noisy_signal[idx, ...].cpu().detach()
+            path = f'./out/{self.loss_type}/noisy_{idx}_type_{self.loss_type}.wav'
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
             torchaudio.save(path, wav, hp.sampling_rate)

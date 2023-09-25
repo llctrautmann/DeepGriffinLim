@@ -86,7 +86,8 @@ class AvianNatureSounds(Dataset):
             signal_power = torch.mean(stft.abs().square())
             noise_power = torch.mean(noise.abs().square())
 
-            random_snr = torch.rand(1).item() * 6 - 6
+            # Generate a random Signal-to-Noise Ratio (SNR) value between -6 and 0
+            random_snr = torch.rand(1).item() * 12 - 12
             # Compute the scaling factor for the noise
             K = torch.sqrt(signal_power / (noise_power * 10 ** (random_snr / 10)))
             # Scale the noise and add it to the original signal
@@ -96,7 +97,7 @@ class AvianNatureSounds(Dataset):
             random_noise = torch.complex(noise_real, noise_imag)
 
             # Perform Griffin-Lim reconstruction
-            gla_pretrain = torch.stft(self.griffin_lim(magnitude),n_fft=1024,hop_length=512,return_complex=True)
+            gla_pretrain = torch.stft(self.griffin_lim(magnitude), n_fft=1024, hop_length=512, return_complex=True)
 
             if hp.data_mode == 'denoise':
                 return stft, noisy_sig, magnitude, label

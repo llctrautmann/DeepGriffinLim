@@ -10,7 +10,7 @@ class Hyperparameter:
     root_dir: str = './data/EC_BIRD/'
     key: str = 'habitat'
     mode: str = 'stft'
-    length: int = 5
+    length: int = 7
     sampling_rate: int = 44100
     n_fft: int = 1024
     hop_length: int = 512
@@ -25,11 +25,10 @@ class Hyperparameter:
     # Model args
     weight_decay: float = 0.0001
     learning_rate: float = 5e-4
-    min_lr: float = 5e-8
-    epochs: int = 15
-    model_depth: int = 5
-    data_mode = 'gla-pretrain'
-    loss_type: str = 'phase'
+    min_lr: float = 5e-9
+    epochs: int = 50
+    model_depth: int = 1
+    data_mode = 'denoise'
     scheduler: Any = field(default=None)
     criterion: Any = field(default=None)
     optimizer: Any = field(default=None)
