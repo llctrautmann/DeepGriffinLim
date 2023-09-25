@@ -217,6 +217,7 @@ class ModelTrainer:
             train_loss, final = self.train()
             validation_loss = self.validate()
             validation_losses.append(validation_loss)
+            print(f'Epoch: {epoch+1}/{self.epochs} | Train loss: {train_loss:.4f} | Validation loss: {validation_loss:.4f}')
 
             if not self.debug:
                 send_push_notification(epoch, validation_loss)
