@@ -356,14 +356,14 @@ class ModelTrainer:
             path = f'./out/{self.loss_type}/clear_{idx}_type_{self.loss_type}.wav'
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
-            torchaudio.save(path, wav, hp.sampling_rate)
+            torchaudio.save(path, wav, hp.sampling_rate//2)
 
         for idx in range(final.shape[0]):
             sample = final[idx, ...].cpu().detach()
             path = f'./out/{self.loss_type}/recon_{idx}_type_{self.loss_type}.wav'
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
-            torchaudio.save(path, wav, hp.sampling_rate)
+            torchaudio.save(path, wav, hp.sampling_rate//2)
 
 
         for idx in range(noisy_signal.shape[0]):
@@ -371,34 +371,35 @@ class ModelTrainer:
             path = f'./out/{self.loss_type}/noisy_{idx}_type_{self.loss_type}.wav'
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
-            torchaudio.save(path, wav, hp.sampling_rate)
+            torchaudio.save(path, wav, hp.sampling_rate//2)
         print('Training complete')
 
     @staticmethod
-    def create_derivative(tensor: torch.tensor, dire: 'str'):
-
-        def wrap_to_pi(x):
+    def create_derivative(tensor: torch.Tensor, dire: str, device=hp.device) -> torch.Tensor:
+        def wrap_to_pi(x: torch.Tensor) -> torch.Tensor:
             # Wrap value to [-pi, pi)
-            x += 2 * torch.tensor(math.pi) * 1e6
-            x %= 2 * torch.tensor(math.pi)
-            return torch.where(x >= torch.tensor(math.pi), x - 2 * torch.tensor(math.pi), x)  
+            x += 2 * math.pi * 1e6
+            x %= 2 * math.pi
+            return torch.where(x >= math.pi, x - 2 * math.pi, x)
+
+        
+        if tensor.dim() == 2:
+            tensor = tensor.to(device).unsqueeze(0).unsqueeze(0)
+        else:
+            tensor = tensor.to(device)
 
         if dire == 'gdl':
-            new_matrix = []
-            for i in range(0, tensor.shape[2]-1):
-                new_matrix.append(-tensor[:,:,i+1,:]+tensor[:,:,i,:])
-            new_matrix.append(tensor[:,:,-1,:])
-            new_matrix = torch.stack(new_matrix, dim=2)
-            new_matrix = wrap_to_pi(new_matrix)
-
-            return new_matrix
+            diff = tensor[:, :, 1:, :] - tensor[:, :, :-1, :]
+            new_matrix = torch.cat([diff, tensor[:, :, -1:, :]], dim=2)
         elif dire == 'ifr':
-            tensor = tensor.permute(0,1,3,2)
-            new_matrix = []
-            for i in range(0, tensor.shape[2]-1):
-                new_matrix.append(-tensor[:,:,i+1,:]+tensor[:,:,i,:])
-            new_matrix.append(tensor[:,:,-1,:])
-            new_matrix = torch.stack(new_matrix, dim=2)
-            new_matrix = wrap_to_pi(new_matrix)
-
-            return new_matrix.permute(0,1,3,2)
+            if tensor.dim() == 4:
+                tensor = tensor.permute(0, 1, 3, 2)
+            diff = tensor[:, :, 1:, :] - tensor[:, :, :-1, :]
+            new_matrix = torch.cat([diff, tensor[:, :, -1:, :]], dim=2)
+            new_matrix = new_matrix.permute(0, 1, 3, 2)
+        else:
+            raise ValueError(f"Unknown direction: {dire}")
+        if tensor.dim() == 2:
+            return wrap_to_pi(new_matrix).squeeze().squeeze()
+        else:
+            return wrap_to_pi(new_matrix)
