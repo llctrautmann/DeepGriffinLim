@@ -8,7 +8,7 @@ from utils import seed_everything
 seed_everything()
 
 # Training loop
-loss_types = ['L1', 'gdl', 'ifr', 'all'] 
+loss_types = ['all'] 
 
 for loss_type in loss_types:
     # Criterion, optimizer, scheduler
@@ -27,7 +27,7 @@ for loss_type in loss_types:
                                 loss_type=loss_type,
                                 learning_rate=hp.learning_rate,
                                 save_path='./src/checkpoints',
-                                debug=False,
+                                debug=True,
                                 device=hp.device)
 
     # Training loop Execution

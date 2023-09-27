@@ -290,7 +290,7 @@ class ModelTrainer:
     def saving_checkpoint(self):
         assert isinstance(self.checkpoint, dict), "self.checkpoint must be a dictionary"
         assert isinstance(self.save_path, str), "self.save_path must be a string"
-        file_name = f"checkpoint_{self.checkpoint['epoch']}.pth.tar"
+        file_name = f"type_{self.loss_type}_checkpoint_{self.checkpoint['epoch']}.pth.tar"
         checkpoint_path = os.path.join(self.save_path, file_name)
         print(f"Saving checkpoint at {checkpoint_path}")
         torch.save(self.checkpoint, checkpoint_path)
@@ -320,12 +320,14 @@ class ModelTrainer:
         Returns:
         Tensor: Loss value.
         """
-        # Ensure predictions are in range [-pi, pi]
-        y_pred = torch.atan2(torch.sin(y_pred), torch.cos(y_pred))
+        # # Ensure predictions are in range [-pi, pi]
+        # y_pred = torch.atan2(torch.sin(y_pred), torch.cos(y_pred))
 
-        # Compute von Mises loss
-        loss = 1 - torch.cos(y_pred - y_true)
-        return torch.mean(loss)
+        # # Compute von Mises loss
+        # loss = 1 - torch.cos(y_pred - y_true)
+        # return torch.mean(loss)
+
+        return -torch.sum(torch.cos(y_true - y_pred))
             
 
     def write_to_tensorboard(self, clear, z_tilda, residual, final):

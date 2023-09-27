@@ -96,6 +96,10 @@ class AvianNatureSounds(Dataset):
 
             random_noise = torch.complex(noise_real, noise_imag)
 
+            one_tensor = torch.ones_like(magnitude)
+            one_tensor = torch.complex(one_tensor, one_tensor)
+
+
             # Perform Griffin-Lim reconstruction
             # gla_pretrain = torch.stft(self.griffin_lim(magnitude), n_fft=1024, hop_length=512, return_complex=True)
 
@@ -104,6 +108,8 @@ class AvianNatureSounds(Dataset):
             elif hp.data_mode == 'gla-pretrain':
                 gla_pretrain = torch.stft(self.griffin_lim(magnitude), n_fft=1024, hop_length=512, return_complex=True)
                 return stft, gla_pretrain , magnitude, label
+            elif hp.data_mode == 'one-init':
+                return stft, one_tensor, magnitude, label
             else:
                 return stft, random_noise, magnitude, label
 
