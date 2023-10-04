@@ -109,7 +109,7 @@ class ModelTrainer:
                 epoch=self.step,
                 loss=self.loss_type,
                 include_phase=True,
-                stft=clear,
+                stft=clear.detach().cpu(),
                 if_mat=ifr_final.detach().cpu(),
                 gdl_mat=gdl_final.detach().cpu()
                 )
@@ -444,7 +444,7 @@ class ModelTrainer:
         conv_phase = torch.angle(stft)
 
         axs[0][0].set_title('Magnitude to dB')
-        librosa.display.specshow(mag_to_db[0][0].cpu(), ax=axs[0][0], y_axis='log')
+        librosa.display.specshow(mag_to_db[0][0], ax=axs[0][0], y_axis='log')
         fig.colorbar(axs[0][0].collections[0], ax=axs[0][0])
 
         axs[0][1].set_title('GDL Matrix')
