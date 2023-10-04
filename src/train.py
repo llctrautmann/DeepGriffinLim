@@ -12,6 +12,24 @@ import torchaudio
 import math
 import librosa
 import matplotlib.pyplot as plt
+import wandb
+
+if hp.device.startswith('cuda'):
+    # start a new wandb run to track this script
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="Phase Retrieval",
+        
+        # track hyperparameters and run metadata
+        config={
+        "learning_rate": hp.learning_rate,
+        "architecture": "Deep Griffin Lim",
+        "dataset": "EC_BIRD",
+        "epochs": hp.epochs,
+        }
+    )
+else:
+    pass
 
 
 class ModelTrainer:
@@ -99,10 +117,8 @@ class ModelTrainer:
             # Forward pass
             z_tilda, residual, final, subblock_out = self.model(x_tilda=noisy, mag=mag)
 
-
-            # Create derivatives
-            gdl_clear, ifr_clear = self.create_derivative(torch.angle(clear))
-            gdl_final, ifr_final = self.create_derivative(torch.angle(final))
+            # Calculate loss
+            loss, gdl_clear, gdl_final, ifr_clear, ifr_final = self.compute_loss(z_tilda, clear, residual, final)
 
             if idx == 1:
                 self.plot_phases(orientation='horizontal',
@@ -113,30 +129,6 @@ class ModelTrainer:
                 if_mat=ifr_final.detach().cpu(),
                 gdl_mat=gdl_final.detach().cpu()
                 )
-
-            # Calculate loss
-            if self.loss_type == 'L1':
-                loss = self.criterion(z_tilda - clear, residual)
-
-
-            elif self.loss_type == 'phase':
-                # loss = self.von_mises_loss(torch.angle(clear), torch.angle(final))
-
-                loss = self.von_mises_loss(torch.angle(z_tilda) - torch.angle(clear), torch.angle(residual))
-
-
-            elif self.loss_type == 'gdl':
-                loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + self.von_mises_loss(gdl_clear, gdl_final)
-
-
-            elif self.loss_type == 'ifr':
-                loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + self.von_mises_loss(ifr_clear, ifr_final)
-
-
-            elif self.loss_type == 'all':
-                loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + \
-                        self.von_mises_loss(gdl_clear, gdl_final) + \
-                        self.von_mises_loss(ifr_clear, ifr_final) 
 
             # Backward pass
             self.optimizer.zero_grad()
@@ -150,8 +142,8 @@ class ModelTrainer:
             train_loss += loss.item()
 
             if idx == 1:
+                continue
                 self.write_to_tensorboard(clear, z_tilda, residual, final)
-
         return train_loss, final
 
 
@@ -173,29 +165,10 @@ class ModelTrainer:
                 # Forward pass
                 z_tilda, residual, final, subblock_out = self.model(x_tilda=noisy, mag=mag)
 
-                # Calculate derivatives
-                gdl_clear, ifr_clear = self.create_derivative(torch.angle(clear))
-                gdl_final, ifr_final = self.create_derivative(torch.angle(final))
-
                 # Calculate loss
-                if self.loss_type == 'L1':
-                    loss = self.criterion(z_tilda - clear, residual)
-                elif self.loss_type == 'phase':
-                    loss = self.von_mises_loss(torch.angle(clear), torch.angle(final))
-                elif self.loss_type == 'gdl':
-                    loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + self.von_mises_loss(gdl_clear, gdl_final)
-
-                elif self.loss_type == 'ifr':
-                    loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + self.von_mises_loss(ifr_clear, ifr_final)
-
-                elif self.loss_type == 'all':
-                    loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + \
-                            self.von_mises_loss(gdl_clear, gdl_final) + \
-                            self.von_mises_loss(ifr_clear, ifr_final) 
-
+                loss, gdl_clear, gdl_final, ifr_clear, ifr_final = self.compute_loss(z_tilda, clear, residual, final)
                 validation_loss += loss.item()
 
-            
             visualize_tensor(clear,key='clear',step=self.step, loss=self.loss_type)
             visualize_tensor(final,key='final',step=self.step, loss=self.loss_type)
 
@@ -214,27 +187,6 @@ class ModelTrainer:
         else:
             print('No checkpoint loaded, weights will be initialised randomly.')
 
-
-        # Testing
-        if hp.testing == True:
-            with torch.no_grad():
-                self.model.eval()
-                for batch in self.test_loader:
-                    clear, noisy, mag, label = batch
-                    # Transfer batch to device
-                    clear = clear.to(self.device)
-
-                    # Transfer batch to device
-                    noisy = noisy.to(self.device)
-
-                    # Transfer batch to device
-                    mag = mag.to(self.device)
-
-                    # Forward pass
-                    z_tilda, residual, final, subblock_out = self.model(x_tilda=noisy, mag=mag)
-                    self.return_audio_sample(clear=clear,noisy_signal=noisy, final=final)
-
-
         self.model = self.model.to(self.device)
         validation_losses = []
 
@@ -244,6 +196,12 @@ class ModelTrainer:
 
             train_loss, final = self.train()
             validation_loss = self.validate()
+
+            if hp.device.startswith('cuda'):
+                wandb.log({"Training Loss": train_loss, "Validation Loss": validation_loss})
+            else:
+                pass
+
             validation_losses.append(validation_loss)
             print(f'Epoch: {epoch+1}/{self.epochs} | Train loss: {train_loss / len(self.train_loader):.4f} | Validation loss: {validation_loss / len(self.val_loader):.4f}')
 
@@ -264,7 +222,6 @@ class ModelTrainer:
 
                     if self.counter == 10:
                         break
-
                 else:
                     self.counter = 0
                     
@@ -285,30 +242,34 @@ class ModelTrainer:
                 # Forward pass
                 z_tilda, residual, final, subblock_out = self.model(x_tilda=noisy, mag=mag)
 
-                # Create Phase + Derivatives
-                gdl_clear, ifr_clear = self.create_derivative(torch.angle(clear))
-                gdl_final, ifr_final = self.create_derivative(torch.angle(final))
-
                 # Calculate loss
-                if self.loss_type == 'L1':
-                    loss = self.criterion(z_tilda - clear, residual)
-                elif self.loss_type == 'phase':
-                    loss = self.von_mises_loss(torch.angle(clear), torch.angle(final))
-                elif self.loss_type == 'gdl':
-                    loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + self.von_mises_loss(gdl_clear, gdl_final)
-
-                elif self.loss_type == 'ifr':
-                    loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + self.von_mises_loss(ifr_clear, ifr_final)
-
-                elif self.loss_type == 'all':
-                    loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + \
-                            self.von_mises_loss(gdl_clear, gdl_final) + \
-                            self.von_mises_loss(ifr_clear, ifr_final) 
+                loss, gdl_clear, gdl_final, ifr_clear, ifr_final = self.compute_loss(z_tilda, clear, residual, final)
 
                 testing_loss += loss.item()
             self.return_audio_sample(clear=clear,noisy_signal=noisy, final=final)
+        return testing_loss
 
-        return validation_losses
+
+    def compute_loss(self, z_tilda, clear, residual, final):
+        gdl_clear, ifr_clear = self.create_derivative(torch.angle(clear))
+        gdl_final, ifr_final = self.create_derivative(torch.angle(final))
+        
+        if self.loss_type == 'L1':
+            return self.criterion(z_tilda - clear, residual), gdl_clear, gdl_final, ifr_clear, ifr_final
+        elif self.loss_type == 'phase':
+            return self.von_mises_loss(torch.angle(clear), torch.angle(final)), gdl_clear, gdl_final, ifr_clear, ifr_final
+        elif self.loss_type == 'gdl':
+            return self.von_mises_loss(torch.angle(clear), torch.angle(final)) + self.von_mises_loss(gdl_clear, gdl_final), gdl_clear, gdl_final, ifr_clear, ifr_final
+        elif self.loss_type == 'ifr':
+            return self.von_mises_loss(torch.angle(clear), torch.angle(final)) + self.von_mises_loss(ifr_clear, ifr_final), gdl_clear, gdl_final, ifr_clear, ifr_final
+        elif self.loss_type == 'all':
+            return self.von_mises_loss(torch.angle(clear), torch.angle(final)) + \
+                self.von_mises_loss(gdl_clear, gdl_final) + \
+                self.von_mises_loss(ifr_clear, ifr_final), gdl_clear, gdl_final, ifr_clear, ifr_final
+        else:
+            raise ValueError(f"Unknown loss type: {self.loss_type}")
+
+        
 
 
     def saving_checkpoint(self):
@@ -351,13 +312,6 @@ class ModelTrainer:
         Returns:
         Tensor: Loss value.
         """
-        # # Ensure predictions are in range [-pi, pi]
-        # y_pred = torch.atan2(torch.sin(y_pred), torch.cos(y_pred))
-
-        # # Compute von Mises loss
-        # loss = 1 - torch.cos(y_pred - y_true)
-        # return torch.mean(loss)
-
         return -torch.sum(torch.cos(y_true - y_pred))
             
 
@@ -397,7 +351,6 @@ class ModelTrainer:
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
             torchaudio.save(path, wav, hp.sampling_rate//2)
-
 
         for idx in range(noisy_signal.shape[0]):
             sample = noisy_signal[idx, ...].cpu().detach()

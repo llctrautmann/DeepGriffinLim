@@ -8,7 +8,7 @@ from utils import seed_everything
 seed_everything()
 
 # Training loop
-loss_types = ['phase'] 
+loss_types = ['all'] 
 
 for loss_type in loss_types:
     # Criterion, optimizer, scheduler
