@@ -1,48 +1,116 @@
-# import librosa
-# from model import *
-# import torch
-# import torchaudio
-# from utils import *
+from dataset import AvianNatureSounds, ds
+from model import *
+from hyperparameter import hp
+from train import *
+from utils import seed_everything
+import numpy as np
+import torch
+import matplotlib.pyplot as plt
+import librosa
+import random
 
-# def plot_spectrograms(batch: torch.Tensor, width=10, height=3):
-#     plt.figure(figsize=(width, height))
-#     librosa.display.specshow(batch[0][0].numpy(),
-#                             sr=44100,
-#                             x_axis='time',
-#                             y_axis='linear'
-#                             )
-#     plt.colorbar(format="%+2.f")
-#     plt.show()
+# Seed everything for reproducibility
+# seed_everything()
 
 
+# def compute_differences(rand_mat):
+#     """
+#     Compute differences between consecutive columns and rows of a matrix.
+    
+#     Parameters:
+#     - rand_mat (torch.Tensor): Input matrix
+    
+#     Returns:
+#     - if_mat (torch.Tensor): Differences between consecutive columns
+#     - gdl_mat (torch.Tensor): Differences between consecutive rows
+#     """
+    
+#     # Compute differences between consecutive columns
+#     if_mat = torch.cat([rand_mat[:, 1:] - rand_mat[:, :-1], rand_mat[:, -1:]], dim=1)
+    
+#     # Compute differences between consecutive rows
+#     gdl_mat = torch.cat([-rand_mat[1:, :] + rand_mat[:-1, :], rand_mat[-1:, :]], dim=0)
 
-# model = DeepGriffinLim(blocks=1)
-# amptodb = torchaudio.transforms.AmplitudeToDB()
-
-# file = librosa.load('./data/UK_BIRD/BALMER-01_0_20150621_0515.wav', sr=44100)[0]
-# file = librosa.load('./data/scale.wav', sr=44100)[0]
-
-# stft = torch.stft(torch.from_numpy(file), n_fft=1024, hop_length=512, return_complex=True)
-
-
-# mag = amptodb(torch.abs(stft))
-# phase = torch.angle(stft)
-
-# mag = mag.unsqueeze_(0).unsqueeze_(0)
-# phase = phase.unsqueeze_(0).unsqueeze_(0)
-# # plot_spectrograms(phase)
-
-# random_phase = torch.rand_like(phase, dtype=torch.complex64)
-
-# z_tilda, residual, final, subblock_out = model(x_tilda=random_phase, mag=mag)
-
-# print(final.shape)
-
-# final_phase = torch.angle(final)
-# final_mag = torch.abs(final)
-
-# plot_spectrograms(final_mag.detach())
+#     # Wrap the derivatives into the range -pi to pi
+#     if_mat = torch.remainder(if_mat + np.pi, 2 * np.pi) - np.pi
+#     gdl_mat = torch.remainder(gdl_mat + np.pi, 2 * np.pi) - np.pi
+    
+#     return if_mat, gdl_mat
 
 
-from dataset import ds
+def compute_differences(rand_mat):
+    """
+    Compute differences between consecutive columns and rows of a matrix.
+    
+    Parameters:
+    - rand_mat (torch.Tensor): Input matrix
+    
+    Returns:
+    - if_mat (torch.Tensor): Differences between consecutive columns
+    - gdl_mat (torch.Tensor): Differences between consecutive rows
+    """
+    
+    # Compute differences between consecutive columns
+    if_mat = torch.cat([rand_mat[:, :, :, 1:] - rand_mat[:, :, :, :-1], rand_mat[:, :, :, -1:]], dim=3)
+    
+    # Compute differences between consecutive rows
+    gdl_mat = torch.cat([-rand_mat[:, :, 1:, :] + rand_mat[:, :, :-1, :], rand_mat[:, :, -1:, :]], dim=2)
+
+    # Wrap the derivatives into the range -pi to pi
+    if_mat = torch.remainder(if_mat + np.pi, 2 * np.pi) - np.pi
+    gdl_mat = torch.remainder(gdl_mat + np.pi, 2 * np.pi) - np.pi
+    
+    return if_mat, gdl_mat
+
+
+
+if __name__ == '__main__':
+
+    # # Load the sample
+    # stft, random_noise, magnitude, label = ds.__getitem__(random.randint(0, len(ds) - 1))
+
+    # # Compute the differences between consecutive columns and rows
+    # if_mat, gdl_mat = compute_differences(torch.angle(stft))
+
+    # Create a dataloader
+    dataloader = torch.utils.data.DataLoader(ds, batch_size=hp.batch_size, shuffle=True, num_workers=hp.num_workers)
+
+    # Iterate over the dataloader
+    batch = next(iter(dataloader))
+
+    # Compute the differences between consecutive columns and rows
+    
+    stft, random_noise, magnitude, label = batch
+
+    for idx, batch in enumerate(dataloader):
+        stft, random_noise, magnitude, label = batch
+
+        print("STFT shape: ", stft.shape)
+        print("Random noise shape: ", random_noise.shape)
+        print("Magnitude shape: ", magnitude.shape)
+
+
+        if_mat, gdl_mat = compute_differences(torch.angle(stft))
+        print(if_mat.shape)
+        print(gdl_mat.shape)
+
+        # Plotting the tensors if_mat and gdl_mat
+        import matplotlib.pyplot as plt
+
+        plt.figure(figsize=(12, 6))
+
+        plt.subplot(1, 2, 1)
+        plt.imshow(if_mat[0][0].numpy(), cmap='hot', interpolation='nearest')
+        plt.title('if_mat')
+
+        plt.subplot(1, 2, 2)
+        plt.imshow(gdl_mat[0][0].numpy(), cmap='hot', interpolation='nearest')
+        plt.title('gdl_mat')
+
+        plt.show()
+        break
+
+
+
+
 

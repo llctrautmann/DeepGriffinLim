@@ -120,7 +120,9 @@ class ModelTrainer:
 
 
             elif self.loss_type == 'phase':
-                loss = self.von_mises_loss(torch.angle(clear), torch.angle(final))
+                # loss = self.von_mises_loss(torch.angle(clear), torch.angle(final))
+
+                loss = self.von_mises_loss(torch.angle(z_tilda) - torch.angle(clear), torch.angle(residual))
 
 
             elif self.loss_type == 'gdl':
