@@ -23,11 +23,11 @@ class Hyperparameter:
     num_workers: int = 1
 
     # Model args
-    subset_size: int = 20
+    subset_size: int = 500
     weight_decay: float = 0.0001
     learning_rate: float = 4e-6
     min_lr: float = 4e-9
-    epochs: int = 2
+    epochs: int = 50
     model_depth: int = 3
     data_mode = 'random'
     scheduler: Any = field(default=None)
