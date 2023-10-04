@@ -149,8 +149,12 @@ def visualize_tensor(tensor, key, loss, step):
         output_dir = f'./out/{loss}/img'
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-        plt.savefig(f'{output_dir}/im_{step}_{key}_type_{loss}.png')
+        img_path = f'{output_dir}/im_{step}_{key}_type_{loss}.png'
+        plt.savefig(img_path)
         plt.close()
+
+        # Log the image file with weights and biases
+        wandb.log({f"{key}_type_{loss}": [wandb.Image(img_path, caption=f"{key}_type_{loss}")]}, step=step)
 
 def plot_spectrograms(batch: torch.Tensor, width=10, height=3,epoch=0):
     plt.figure(figsize=(width, height))

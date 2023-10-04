@@ -344,6 +344,7 @@ class ModelTrainer:
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
             torchaudio.save(path, wav, hp.sampling_rate//2)
+            wandb.log({"audio clear": wandb.Audio(wav, caption=f"Clear_{idx}", sample_rate=hp.sampling_rate//2)})
 
         for idx in range(final.shape[0]):
             sample = final[idx, ...].cpu().detach()
@@ -351,6 +352,7 @@ class ModelTrainer:
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
             torchaudio.save(path, wav, hp.sampling_rate//2)
+            wandb.log({"audio recon": wandb.Audio(wav, caption=f"Recon_{idx}", sample_rate=hp.sampling_rate//2)})
 
         for idx in range(noisy_signal.shape[0]):
             sample = noisy_signal[idx, ...].cpu().detach()
@@ -358,6 +360,7 @@ class ModelTrainer:
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
             torchaudio.save(path, wav, hp.sampling_rate//2)
+            wandb.log({"audio noisy": wandb.Audio(wav, caption=f"Noisy_{idx}", sample_rate=hp.sampling_rate//2)})
         print('Training complete')
 
     @staticmethod
@@ -386,7 +389,7 @@ class ModelTrainer:
         return if_mat, gdl_mat
 
     @staticmethod
-    def plot_phases(orientation='horizontal',epoch=None,loss=None, include_phase=True,stft=None, if_mat=None, gdl_mat=None):
+    def plot_phases(self, orientation='horizontal', epoch=None, loss=None, include_phase=True, stft=None, if_mat=None, gdl_mat=None):
         if orientation == 'vertical':
             fig, axs = plt.subplots(2, 2, figsize=(15, 15)) if include_phase else plt.subplots(3, 1, figsize=(15, 20))
         elif orientation == 'horizontal':
@@ -416,5 +419,10 @@ class ModelTrainer:
             fig.colorbar(axs[1][1].collections[0], ax=axs[1][1])
 
         plt.tight_layout()
-        plt.savefig(f'./out/img/{epoch}_{loss}.png')
+        img_path = f'./out/img/{epoch}_{loss}.png'
+        plt.savefig(img_path)
         plt.close()
+
+        # Log the image to wandb
+        if hp.device.startswith('cuda'):
+            wandb.log({"Phases": [wandb.Image(img_path, caption=f"Epoch: {epoch}, Loss: {loss}")]})
