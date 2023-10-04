@@ -28,8 +28,9 @@ for loss_type in loss_types:
                                 learning_rate=hp.learning_rate,
                                 save_path='./src/checkpoints',
                                 debug=True,
-                                device=hp.device)
+                                device=hp.device,
+                                load_checkpoint=False,
+                                load_path='./src/checkpoints/')
 
     # Training loop Execution
-    #TrainingLoop.healthcheck()
     TrainingLoop.main()

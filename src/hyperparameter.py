@@ -14,21 +14,22 @@ class Hyperparameter:
     sampling_rate: int = 44100
     n_fft: int = 1024
     hop_length: int = 512
-    downsample: bool = True
+    downsample: bool = False
     mel_spectrogram = None
     verbose: bool = False
     fixed_limit: bool = True
-    batch_size: int = 4
-    batchnorm: bool = True
+    batch_size: int = 16
+    batchnorm: bool = False
     num_workers: int = 1
 
     # Model args
+    subset_size: int = 200
     weight_decay: float = 0.0001
     learning_rate: float = 4e-5
     min_lr: float = 4e-9
-    epochs: int = 5
+    epochs: int = 50
     model_depth: int = 3
-    data_mode = 'denoise'
+    data_mode = 'random'
     scheduler: Any = field(default=None)
     criterion: Any = field(default=None)
     optimizer: Any = field(default=None)
@@ -38,6 +39,7 @@ class Hyperparameter:
     # save / load model
     save_path: str = './src/checkpoints/DGL.pth.tar'
     load_path: str = './src/checkpoints/DGL.pth.tar'
+    testing: bool = False
 
     def update_hyperparameter(self, **kwargs):
         for key, value in kwargs.items():

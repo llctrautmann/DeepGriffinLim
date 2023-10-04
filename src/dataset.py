@@ -4,6 +4,7 @@ from torch.utils.data import Dataset, DataLoader
 import pandas as pd
 import torchaudio
 import random
+import librosa
 from hyperparameter import hp
 
 
@@ -57,7 +58,10 @@ class AvianNatureSounds(Dataset):
                 self.root_dir, os.listdir(self.root_dir)[index]
             )
             label = self.annotation_file.iloc[index][self.column]
-            signal, sr = torchaudio.load(audio_sample_path)
+            # signal, sr = torchaudio.load(audio_sample_path)
+
+            signal, sr = librosa.load(audio_sample_path, sr=self.sampling_rate)
+            signal = signal.reshape(1, -1)
 
             if self.downsample:
                 signal = self.downsample_waveform(signal)
@@ -67,15 +71,22 @@ class AvianNatureSounds(Dataset):
             # Clip the signal to the desired length
             signal = self.clip(signal, sr, self.length, offset='random')
 
-            stft = torch.stft(
+            # Depreciated STFT function
+            # stft = torch.stft(
+            #     signal,
+            #     n_fft=self.n_fft,
+            #     hop_length=self.hop_length,
+            #     win_length=self.n_fft,
+            #     normalized=False,
+            #     return_complex=True,
+            # )
+
+            stft = librosa.stft(
                 signal,
                 n_fft=self.n_fft,
-                hop_length=self.hop_length,
-                win_length=self.n_fft,
-                normalized=False,
-                return_complex=True,
-            )
+                hop_length=self.hop_length)
 
+            stft = torch.from_numpy(stft)
             # Add complex Gaussian noise to the complex tensor
             noise_real = torch.randn_like(stft.real)
             noise_imag = torch.randn_like(stft.imag)
@@ -87,7 +98,7 @@ class AvianNatureSounds(Dataset):
             noise_power = torch.mean(noise.abs().square())
 
             # Generate a random Signal-to-Noise Ratio (SNR) value between -6 and 0
-            random_snr = torch.rand(1).item() * 12 - 12
+            random_snr = torch.rand(1).item() * 6 - 6
             # Compute the scaling factor for the noise
             K = torch.sqrt(signal_power / (noise_power * 10 ** (random_snr / 10)))
             # Scale the noise and add it to the original signal
@@ -95,21 +106,18 @@ class AvianNatureSounds(Dataset):
             magnitude = torch.abs(stft)
 
             random_noise = torch.complex(noise_real, noise_imag)
+            noise_real_circular = torch.rand_like(magnitude) * 2 * torch.pi - torch.pi
+            noise_imag_circular = torch.rand_like(magnitude) * 2 * torch.pi - torch.pi
+            random_circular = torch.complex(noise_real, noise_imag)
 
-            one_tensor = torch.ones_like(magnitude)
-            one_tensor = torch.complex(one_tensor, one_tensor)
-
-
-            # Perform Griffin-Lim reconstruction
-            # gla_pretrain = torch.stft(self.griffin_lim(magnitude), n_fft=1024, hop_length=512, return_complex=True)
 
             if hp.data_mode == 'denoise':
                 return stft, noisy_sig, magnitude, label
             elif hp.data_mode == 'gla-pretrain':
                 gla_pretrain = torch.stft(self.griffin_lim(magnitude), n_fft=1024, hop_length=512, return_complex=True)
                 return stft, gla_pretrain , magnitude, label
-            elif hp.data_mode == 'one-init':
-                return stft, one_tensor, magnitude, label
+            elif hp.data_mode == 'random_circular':
+                return stft, random_circular, magnitude, label
             else:
                 return stft, random_noise, magnitude, label
 
@@ -175,4 +183,5 @@ ds = AvianNatureSounds(
     n_fft=hp.n_fft,
     hop_length=hp.hop_length,
     mel_spectrogram=hp.mel_spectrogram,
+    downsample=hp.downsample,
 )

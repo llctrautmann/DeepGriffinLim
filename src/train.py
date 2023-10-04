@@ -4,11 +4,14 @@ from utils import HealthCheckDashboard, send_push_notification, resize_signal_le
 from hyperparameter import hp
 import torch
 from numpy import inf
+import numpy as np
 import os
 from torch.utils.tensorboard import SummaryWriter
 import torchvision
 import torchaudio
 import math
+import librosa
+import matplotlib.pyplot as plt
 
 
 class ModelTrainer:
@@ -61,7 +64,7 @@ class ModelTrainer:
         """
 
         if self.debug:
-            subset = Subset(self.dataset, range(20))
+            subset = Subset(self.dataset, range(hp.subset_size))
             trainset, testset = random_split(subset, [0.9, 0.1])
             trainset, validset = random_split(trainset, [0.9, 0.1])
         else:
@@ -96,30 +99,37 @@ class ModelTrainer:
             # Forward pass
             z_tilda, residual, final, subblock_out = self.model(x_tilda=noisy, mag=mag)
 
-            # Calculate loss
-            # loss = self.criterion(z_tilda - clear, residual)
-
-
-            ### Phase loss, and GD loss and IF loss
 
             # Create derivatives
-            gdl_clear = self.create_derivative(torch.angle(clear), dire='gdl')
-            gdl_final = self.create_derivative(torch.angle(final), dire='gdl')
+            gdl_clear, ifr_clear = self.create_derivative(torch.angle(clear))
+            gdl_final, ifr_final = self.create_derivative(torch.angle(final))
 
-            ifr_clear = self.create_derivative(torch.angle(clear), dire='ifr')
-            ifr_final = self.create_derivative(torch.angle(final), dire='ifr')
+            if idx == 1:
+                self.plot_phases(orientation='horizontal',
+                epoch=self.step,
+                loss=self.loss_type,
+                include_phase=True,
+                stft=clear,
+                if_mat=ifr_final.detach().cpu(),
+                gdl_mat=gdl_final.detach().cpu()
+                )
 
             # Calculate loss
-
             if self.loss_type == 'L1':
                 loss = self.criterion(z_tilda - clear, residual)
+
+
             elif self.loss_type == 'phase':
                 loss = self.von_mises_loss(torch.angle(clear), torch.angle(final))
+
+
             elif self.loss_type == 'gdl':
                 loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + self.von_mises_loss(gdl_clear, gdl_final)
 
+
             elif self.loss_type == 'ifr':
                 loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + self.von_mises_loss(ifr_clear, ifr_final)
+
 
             elif self.loss_type == 'all':
                 loss = self.von_mises_loss(torch.angle(clear), torch.angle(final)) + \
@@ -161,14 +171,9 @@ class ModelTrainer:
                 # Forward pass
                 z_tilda, residual, final, subblock_out = self.model(x_tilda=noisy, mag=mag)
 
-                # Calculate loss
-
-                # Create Phase + Derivatives
-                gdl_clear = self.create_derivative(torch.angle(clear), dire='gdl')
-                gdl_final = self.create_derivative(torch.angle(final), dire='gdl')
-
-                ifr_clear = self.create_derivative(torch.angle(clear), dire='ifr')
-                ifr_final = self.create_derivative(torch.angle(final), dire='ifr')
+                # Calculate derivatives
+                gdl_clear, ifr_clear = self.create_derivative(torch.angle(clear))
+                gdl_final, ifr_final = self.create_derivative(torch.angle(final))
 
                 # Calculate loss
                 if self.loss_type == 'L1':
@@ -189,7 +194,6 @@ class ModelTrainer:
                 validation_loss += loss.item()
 
             
-            #save_reconstruction(self.model,step=self.step)
             visualize_tensor(clear,key='clear',step=self.step, loss=self.loss_type)
             visualize_tensor(final,key='final',step=self.step, loss=self.loss_type)
 
@@ -205,7 +209,29 @@ class ModelTrainer:
                 return 0
             else:
                 print("Checkpoint loaded")
-        print('No checkpoint loaded, weights will be initialised randomly.')
+        else:
+            print('No checkpoint loaded, weights will be initialised randomly.')
+
+
+        # Testing
+        if hp.testing == True:
+            with torch.no_grad():
+                self.model.eval()
+                for batch in self.test_loader:
+                    clear, noisy, mag, label = batch
+                    # Transfer batch to device
+                    clear = clear.to(self.device)
+
+                    # Transfer batch to device
+                    noisy = noisy.to(self.device)
+
+                    # Transfer batch to device
+                    mag = mag.to(self.device)
+
+                    # Forward pass
+                    z_tilda, residual, final, subblock_out = self.model(x_tilda=noisy, mag=mag)
+                    self.return_audio_sample(clear=clear,noisy_signal=noisy, final=final)
+
 
         self.model = self.model.to(self.device)
         validation_losses = []
@@ -217,7 +243,7 @@ class ModelTrainer:
             train_loss, final = self.train()
             validation_loss = self.validate()
             validation_losses.append(validation_loss)
-            print(f'Epoch: {epoch+1}/{self.epochs} | Train loss: {train_loss / len(train_loader):.4f} | Validation loss: {validation_loss / val_loader:.4f}')
+            print(f'Epoch: {epoch+1}/{self.epochs} | Train loss: {train_loss / len(self.train_loader):.4f} | Validation loss: {validation_loss / len(self.val_loader):.4f}')
 
             if not self.debug:
                 send_push_notification(epoch, validation_loss)
@@ -258,12 +284,8 @@ class ModelTrainer:
                 z_tilda, residual, final, subblock_out = self.model(x_tilda=noisy, mag=mag)
 
                 # Create Phase + Derivatives
-                gdl_clear = self.create_derivative(torch.angle(clear), dire='gdl')
-                gdl_final = self.create_derivative(torch.angle(final), dire='gdl')
-
-                ifr_clear = self.create_derivative(torch.angle(clear), dire='ifr')
-                ifr_final = self.create_derivative(torch.angle(final), dire='ifr')
-
+                gdl_clear, ifr_clear = self.create_derivative(torch.angle(clear))
+                gdl_final, ifr_final = self.create_derivative(torch.angle(final))
 
                 # Calculate loss
                 if self.loss_type == 'L1':
@@ -299,8 +321,14 @@ class ModelTrainer:
     def loading_checkpoint(self):
         assert isinstance(self.load_path, str), "self.load_path must be a string"
         if os.path.isfile(self.load_path):
-            self.checkpoint = torch.load(self.load_path)
-            self.model.load_state_dict(checkpoint)
+            self.checkpoint = torch.load(self.load_path, map_location=torch.device('cpu'))
+            
+            # Extract the model's state_dict from the checkpoint
+            model_state_dict = self.checkpoint.get('state_dict', self.checkpoint)
+            
+            # Load the model's state_dict
+            self.model.load_state_dict(model_state_dict)
+            
             if self.verbose:
                 print(f"Loaded checkpoint '{self.load_path}'")
                 return 1
@@ -308,6 +336,7 @@ class ModelTrainer:
         else:
             print(f"No checkpoint found at '{self.load_path}'")
             return 0
+
 
     def von_mises_loss(self, y_true, y_pred):
         """
@@ -377,31 +406,60 @@ class ModelTrainer:
         print('Training complete')
 
     @staticmethod
-    def create_derivative(tensor: torch.Tensor, dire: str, device=hp.device) -> torch.Tensor:
-        def wrap_to_pi(x: torch.Tensor) -> torch.Tensor:
-            # Wrap value to [-pi, pi)
-            x += 2 * math.pi * 1e6
-            x %= 2 * math.pi
-            return torch.where(x >= math.pi, x - 2 * math.pi, x)
-
+    def create_derivative(rand_mat):
+        """
+        Compute differences between consecutive columns and rows of a matrix.
         
-        if tensor.dim() == 2:
-            tensor = tensor.to(device).unsqueeze(0).unsqueeze(0)
-        else:
-            tensor = tensor.to(device)
+        Parameters:
+        - rand_mat (torch.Tensor): Input matrix
+        
+        Returns:
+        - if_mat (torch.Tensor): Differences between consecutive columns
+        - gdl_mat (torch.Tensor): Differences between consecutive rows
+        """
+        
+        # Compute differences between consecutive columns
+        if_mat = torch.cat([rand_mat[:, :, :, 1:] - rand_mat[:, :, :, :-1], rand_mat[:, :, :, -1:]], dim=3)
+        
+        # Compute differences between consecutive rows
+        gdl_mat = torch.cat([-rand_mat[:, :, 1:, :] + rand_mat[:, :, :-1, :], rand_mat[:, :, -1:, :]], dim=2)
 
-        if dire == 'gdl':
-            diff = tensor[:, :, 1:, :] - tensor[:, :, :-1, :]
-            new_matrix = torch.cat([diff, tensor[:, :, -1:, :]], dim=2)
-        elif dire == 'ifr':
-            if tensor.dim() == 4:
-                tensor = tensor.permute(0, 1, 3, 2)
-            diff = tensor[:, :, 1:, :] - tensor[:, :, :-1, :]
-            new_matrix = torch.cat([diff, tensor[:, :, -1:, :]], dim=2)
-            new_matrix = new_matrix.permute(0, 1, 3, 2)
+        # Wrap the derivatives into the range -pi to pi
+        if_mat = torch.remainder(if_mat + np.pi, 2 * np.pi) - np.pi
+        gdl_mat = torch.remainder(gdl_mat + np.pi, 2 * np.pi) - np.pi
+        
+        return if_mat, gdl_mat
+
+    @staticmethod
+    def plot_phases(orientation='horizontal',epoch=None,loss=None, include_phase=True,stft=None, if_mat=None, gdl_mat=None):
+        if orientation == 'vertical':
+            fig, axs = plt.subplots(2, 2, figsize=(15, 15)) if include_phase else plt.subplots(3, 1, figsize=(15, 20))
+        elif orientation == 'horizontal':
+            fig, axs = plt.subplots(2, 2, figsize=(20, 10)) if include_phase else plt.subplots(1, 3, figsize=(20, 5))
         else:
-            raise ValueError(f"Unknown direction: {dire}")
-        if tensor.dim() == 2:
-            return wrap_to_pi(new_matrix).squeeze().squeeze()
-        else:
-            return wrap_to_pi(new_matrix)
+            raise ValueError("Invalid orientation. Choose either 'vertical' or 'horizontal'")
+
+        mag = np.abs(stft)
+        mag_to_db = librosa.amplitude_to_db(mag)
+        conv_phase = torch.angle(stft)
+
+        axs[0][0].set_title('Magnitude to dB')
+        librosa.display.specshow(mag_to_db[0][0], ax=axs[0][0], y_axis='log')
+        fig.colorbar(axs[0][0].collections[0], ax=axs[0][0])
+
+        axs[0][1].set_title('GDL Matrix')
+        librosa.display.specshow(gdl_mat[0][0].numpy(), ax=axs[0][1], y_axis='linear')
+        fig.colorbar(axs[0][1].collections[0], ax=axs[0][1])
+
+        axs[1][0].set_title('IF Matrix')
+        librosa.display.specshow(if_mat[0][0].numpy(), ax=axs[1][0],y_axis='linear')
+        fig.colorbar(axs[1][0].collections[0], ax=axs[1][0])
+
+        if include_phase:
+            axs[1][1].set_title('Phase')
+            librosa.display.specshow(conv_phase[0][0].numpy(), ax=axs[1][1], y_axis='linear')
+            fig.colorbar(axs[1][1].collections[0], ax=axs[1][1])
+
+        plt.tight_layout()
+        plt.savefig(f'./out/img/{epoch}_{loss}.png')
+        plt.close()
