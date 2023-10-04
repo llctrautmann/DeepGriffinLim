@@ -444,20 +444,20 @@ class ModelTrainer:
         conv_phase = torch.angle(stft)
 
         axs[0][0].set_title('Magnitude to dB')
-        librosa.display.specshow(mag_to_db[0][0], ax=axs[0][0], y_axis='log')
+        librosa.display.specshow(mag_to_db[0][0].cpu(), ax=axs[0][0], y_axis='log')
         fig.colorbar(axs[0][0].collections[0], ax=axs[0][0])
 
         axs[0][1].set_title('GDL Matrix')
-        librosa.display.specshow(gdl_mat[0][0].numpy(), ax=axs[0][1], y_axis='linear')
+        librosa.display.specshow(gdl_mat[0][0].cpu().numpy(), ax=axs[0][1], y_axis='linear')
         fig.colorbar(axs[0][1].collections[0], ax=axs[0][1])
 
         axs[1][0].set_title('IF Matrix')
-        librosa.display.specshow(if_mat[0][0].numpy(), ax=axs[1][0],y_axis='linear')
+        librosa.display.specshow(if_mat[0][0].cpu().numpy(), ax=axs[1][0],y_axis='linear')
         fig.colorbar(axs[1][0].collections[0], ax=axs[1][0])
 
         if include_phase:
             axs[1][1].set_title('Phase')
-            librosa.display.specshow(conv_phase[0][0].numpy(), ax=axs[1][1], y_axis='linear')
+            librosa.display.specshow(conv_phase[0][0].cpu().numpy(), ax=axs[1][1], y_axis='linear')
             fig.colorbar(axs[1][1].collections[0], ax=axs[1][1])
 
         plt.tight_layout()
