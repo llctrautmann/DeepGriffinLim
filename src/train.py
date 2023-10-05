@@ -193,19 +193,15 @@ class ModelTrainer:
 
         loop = tqdm(range(self.epochs), disable=self.debug)
         for epoch in loop:
-            print(f'step counter = {self.step}')
+            self.step += 1
             self.checkpoint = {'state_dict': self.model.state_dict(),'optimizer': self.optimizer.state_dict(), 'epoch': epoch, 'best_loss': self.best_loss}
-
             train_loss, final = self.train()
             validation_loss = self.validate()
-
             if hp.device.startswith('cuda'):
                 wandb.log({"Training Loss": train_loss, "Validation Loss": validation_loss}, step=self.step)
             else:
                 pass
         
-            self.step += 1
-
             validation_losses.append(validation_loss)
             print(f'Epoch: {epoch+1}/{self.epochs} | Train loss: {train_loss / len(self.train_loader):.4f} | Validation loss: {validation_loss / len(self.val_loader):.4f}')
 
