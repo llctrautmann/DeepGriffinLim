@@ -120,43 +120,39 @@ def resize_signal_length(signal, signal_length):
     else:
         return signal
 
-def visualize_tensor(tensor, key, loss, step):
+def visualize_tensor(clear, recon, key, loss, step):
+    # Separate the real and imaginary parts of the complex tensor
+    real = clear.abs()
+    imag = clear.angle()
+    recon = recon.angle()
+    amptodb = librosa.amplitude_to_db
 
-    if len(tensor.shape) == 4:
-        tensor = tensor[0][0].detach().cpu()
-        # Separate the real and imaginary parts of the complex tensor
-        real = tensor.abs()
-        imag = tensor.angle()
-        amptodb = torchaudio.transforms.AmplitudeToDB()
+    # convert to numpy and detach from the graph
+    real = real.detach().numpy()
+    imag = imag.detach().numpy()
+    recon = recon.detach().numpy()
 
-        # Create a grid of subplots for real and imaginary parts
-        fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+    # Create a grid of subplots for real and imaginary parts
+    fig, axs = plt.subplots(1, 3, figsize=(30, 5))
 
-        # Plot the real part
-        im1 = axs[0].imshow(amptodb(real), cmap='magma')
-        axs[0].set_title('Magnitude')
+    # Plot the magnitude part, real part and reconstructed part
+    titles = ['Magnitude', 'Ground Truth Phase', 'Reconstructed Phase']
+    images = [amptodb(real), imag, recon]
+    for i in range(3):
+        im = librosa.display.specshow(images[i][0][0], ax=axs[i])
+        axs[i].set_title(titles[i])
+        fig.colorbar(im, ax=axs[i])
 
-        # Plot the imaginary part
-        im2 = axs[1].imshow(imag, cmap='Blues')
-        axs[1].set_title('Phase')
+    # Save the plot to a file in a specified folder
+    output_dir = os.path.join('.', 'out', str(loss), 'img')
+    os.makedirs(output_dir, exist_ok=True)
+    img_path = os.path.join(output_dir, f'im_{step}_{key}_type_{loss}.png')
+    plt.savefig(img_path)
+    plt.close()
 
-        # Add color bar
-        fig.colorbar(im1, ax=axs[0])
-        fig.colorbar(im2, ax=axs[1])
-
-        # Save the plot to a file in a specified folder
-        output_dir = f'./out/{loss}/img'
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        img_path = f'{output_dir}/im_{step}_{key}_type_{loss}.png'
-        plt.savefig(img_path)
-        plt.close()
-
-        # Log the image file with weights and biases
-        if hp.device.startswith('cuda'):
-            wandb.log({f"{key}_type_{loss}": [wandb.Image(img_path, caption=f"{key}_type_{loss}")]}, step=step)
-        else:
-            pass
+    # Log the image file with weights and biases
+    if hp.device.startswith('cuda'):
+        wandb.log({f"{key}_type_{loss}": [wandb.Image(img_path, caption=f"{key}_type_{loss}")]}, step=step)
 
 
 

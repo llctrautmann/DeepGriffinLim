@@ -12,7 +12,7 @@ seed_everything()
 model = DeepGriffinLim(blocks=hp.model_depth)
 criterion = nn.L1Loss(reduction='sum').to(device=hp.device)
 optimizer = torch.optim.Adam(model.parameters(), lr=hp.learning_rate, weight_decay=hp.weight_decay)
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, min_lr=hp.min_lr, verbose=True)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, min_lr=hp.min_lr, verbose=True)
 
 TrainingLoop = ModelTrainer(model=model,
                             criterion=criterion,
@@ -24,7 +24,7 @@ TrainingLoop = ModelTrainer(model=model,
                             loss_type=hp.loss_type,
                             learning_rate=hp.learning_rate,
                             save_path='./src/checkpoints',
-                            debug=True,
+                            debug=False,
                             device=hp.device,
                             load_checkpoint=False,
                             load_path='./src/checkpoints/')
