@@ -23,7 +23,7 @@ class Hyperparameter:
     num_workers: int = 1
 
     # Model args
-    subset_size: int = 20
+    subset_size: int = 800
     weight_decay: float = 0.0001
     learning_rate: float = 4e-6
     min_lr: float = 4e-10
@@ -33,7 +33,7 @@ class Hyperparameter:
     scheduler: Any = field(default=None)
     criterion: Any = field(default=None)
     optimizer: Any = field(default=None)
-    device = 'cuda:1' if torch.cuda.is_available() else 'cpu'
+    device = 'cuda:7' if torch.cuda.is_available() else 'cpu'
 
 
     # save / load model
