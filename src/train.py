@@ -247,6 +247,7 @@ class ModelTrainer:
 
                 testing_loss += loss.item()
             self.return_audio_sample(clear=clear,noisy_signal=noisy, final=final)
+            self.step += 1
         return testing_loss
 
 
