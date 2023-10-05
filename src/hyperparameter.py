@@ -18,12 +18,12 @@ class Hyperparameter:
     mel_spectrogram = None
     verbose: bool = False
     fixed_limit: bool = True
-    batch_size: int = 16
+    batch_size: int = 2
     batchnorm: bool = False
     num_workers: int = 1
 
     # Model args
-    subset_size: int = 500
+    subset_size: int = 20
     weight_decay: float = 0.0001
     learning_rate: float = 4e-6
     min_lr: float = 4e-10

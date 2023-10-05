@@ -3,6 +3,7 @@ import random
 import torch
 import http.client, urllib
 from dotenv import load_dotenv
+from hyperparameter import hp
 import numpy as np
 import torchvision
 import torchaudio
@@ -155,7 +156,10 @@ def visualize_tensor(tensor, key, loss, step):
         plt.close()
 
         # Log the image file with weights and biases
-        wandb.log({f"{key}_type_{loss}": [wandb.Image(img_path, caption=f"{key}_type_{loss}")]}, step=step)
+        if hp.device.startswith('cuda'):
+            wandb.log({f"{key}_type_{loss}": [wandb.Image(img_path, caption=f"{key}_type_{loss}")]}, step=step)
+        else:
+            pass
 
 def plot_spectrograms(batch: torch.Tensor, width=10, height=3,epoch=0):
     plt.figure(figsize=(width, height))

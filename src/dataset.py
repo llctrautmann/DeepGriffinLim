@@ -39,7 +39,8 @@ class AvianNatureSounds(Dataset):
         self.downsample = downsample
         self.sampling_rate = sampling_rate
         self.signal_length = None
-        self.offset = 'random'
+        self.offset_type = 'random'
+        self.offset = None
         self.griffin_lim = torchaudio.transforms.GriffinLim(
             n_fft=self.n_fft,
             win_length=self.n_fft,
@@ -138,9 +139,13 @@ class AvianNatureSounds(Dataset):
         sig_len = audio_signal.shape[1]
         length = int(sr * desired_length)
         if sig_len > length:
-            if self.offset == 'random':
-                offset = random.randint(0, sig_len - length)
-                self.offset = offset
+            if self.offset_type == 'random':
+                if self.offset is None:
+                    # offset = random.randint(0, sig_len - length)
+                    offset = 10000
+                    self.offset = offset
+                else:
+                    offset = self.offset
                 audio_signal = audio_signal[:, offset : (offset + length)]
                 return audio_signal
             else:

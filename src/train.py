@@ -89,6 +89,7 @@ class ModelTrainer:
             trainset, testset = random_split(self.dataset, [0.9, 0.1])
             trainset, validset = random_split(trainset, [0.9, 0.1])
 
+
         # Create dataloaders
         self.train_loader = DataLoader(trainset, batch_size=self.batch_size, shuffle=True,pin_memory=True)
         self.val_loader = DataLoader(validset, batch_size=self.batch_size, shuffle=False,pin_memory=True)
@@ -120,16 +121,6 @@ class ModelTrainer:
             # Calculate loss
             loss, gdl_clear, gdl_final, ifr_clear, ifr_final = self.compute_loss(z_tilda, clear, residual, final)
 
-            if idx == 1:
-                self.plot_phases(orientation='horizontal',
-                epoch=self.step,
-                loss=self.loss_type,
-                include_phase=True,
-                stft=clear.detach().cpu(),
-                if_mat=ifr_final.detach().cpu(),
-                gdl_mat=gdl_final.detach().cpu()
-                )
-
             # Backward pass
             self.optimizer.zero_grad()
             loss.backward()
@@ -152,6 +143,7 @@ class ModelTrainer:
         validation_loss = 0
         with torch.no_grad():
             for idx, val_batch in enumerate(self.val_loader):
+                print(f"IDX = {idx}")
                 clear, noisy, mag, label = val_batch
                 # Transfer batch to device
                 clear = clear.to(self.device)
@@ -168,6 +160,16 @@ class ModelTrainer:
                 # Calculate loss
                 loss, gdl_clear, gdl_final, ifr_clear, ifr_final = self.compute_loss(z_tilda, clear, residual, final)
                 validation_loss += loss.item()
+
+                if idx == 0:
+                    self.plot_phases(orientation='horizontal',
+                    epoch=self.step,
+                    loss=self.loss_type,
+                    include_phase=True,
+                    stft=clear.detach().cpu(),
+                    if_mat=ifr_final.detach().cpu(),
+                    gdl_mat=gdl_final.detach().cpu()
+                    )
 
             visualize_tensor(clear,key='clear',step=self.step, loss=self.loss_type)
             visualize_tensor(final,key='final',step=self.step, loss=self.loss_type)
@@ -196,6 +198,7 @@ class ModelTrainer:
 
             train_loss, final = self.train()
             validation_loss = self.validate()
+            self.step += 1
 
             if hp.device.startswith('cuda'):
                 wandb.log({"Training Loss": train_loss, "Validation Loss": validation_loss})
@@ -207,6 +210,8 @@ class ModelTrainer:
 
             if not self.debug:
                 send_push_notification(epoch, validation_loss)
+            else:
+                pass
 
             if validation_loss < self.best_loss:
                 self.best_loss = validation_loss
@@ -247,7 +252,6 @@ class ModelTrainer:
 
                 testing_loss += loss.item()
             self.return_audio_sample(clear=clear,noisy_signal=noisy, final=final)
-            self.step += 1
         return testing_loss
 
 
@@ -395,6 +399,7 @@ class ModelTrainer:
 
         plt.tight_layout()
         img_path = f'./out/img/{epoch}_{loss}.png'
+        print(f'Saving image to {img_path}')
         plt.savefig(img_path)
         plt.close()
 
