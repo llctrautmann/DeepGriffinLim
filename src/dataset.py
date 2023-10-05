@@ -104,23 +104,21 @@ class AvianNatureSounds(Dataset):
             K = torch.sqrt(signal_power / (noise_power * 10 ** (random_snr / 10)))
             # Scale the noise and add it to the original signal
             noisy_sig = stft + K * noise
-            magnitude = torch.abs(stft)
+            magnitude = torch.abs(stft)  # assuming stft is your complex tensor
 
-            random_noise = torch.complex(noise_real, noise_imag)
-            noise_real_circular = torch.rand_like(magnitude) * 2 * torch.pi - torch.pi
-            noise_imag_circular = torch.rand_like(magnitude) * 2 * torch.pi - torch.pi
-            random_circular = torch.complex(noise_real, noise_imag)
-
+            # create a random phase
+            phase = torch.rand_like(magnitude) * 2 * torch.pi - torch.pi  
+            real = magnitude * torch.cos(phase)
+            imag = magnitude * torch.sin(phase)
+            random_init = torch.complex(real, imag)
 
             if hp.data_mode == 'denoise':
                 return stft, noisy_sig, magnitude, label
             elif hp.data_mode == 'gla-pretrain':
                 gla_pretrain = torch.stft(self.griffin_lim(magnitude), n_fft=1024, hop_length=512, return_complex=True)
                 return stft, gla_pretrain , magnitude, label
-            elif hp.data_mode == 'random_circular':
-                return stft, random_circular, magnitude, label
             else:
-                return stft, random_noise, magnitude, label
+                return stft, random_init, magnitude, label
 
     @torch.no_grad()
     def clip(self, audio_signal, sr, desired_length, offset=None):

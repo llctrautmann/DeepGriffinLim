@@ -18,19 +18,19 @@ class Hyperparameter:
     mel_spectrogram = None
     verbose: bool = False
     fixed_limit: bool = True
-    batch_size: int = 8
+    batch_size: int = 2
     batchnorm: bool = False
     num_workers: int = 8
 
     # Model args
-    subset_size: int = 500
+    subset_size: int = 15
     weight_decay: float = 0.0001
-    learning_rate: float = 4e-6
-    min_lr: float = 4e-10
-    epochs: int = 100
-    model_depth: int = 3
-    data_mode = 'random'
-    loss_type = 'phase'
+    learning_rate: float = 3e-4
+    min_lr: float = 1e-10
+    epochs: int = 25
+    model_depth: int = 5
+    data_mode = 'denoise'
+    loss_type = 'L1'
     scheduler: Any = field(default=None)
     criterion: Any = field(default=None)
     optimizer: Any = field(default=None)
