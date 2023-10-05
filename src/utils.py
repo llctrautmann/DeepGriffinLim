@@ -8,6 +8,7 @@ import torchvision
 import torchaudio
 import matplotlib.pyplot as plt
 import librosa
+import wandb
 # from IPython.display import Audio
 
 def seed_everything(seed=42):
