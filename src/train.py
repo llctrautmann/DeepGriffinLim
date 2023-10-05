@@ -170,8 +170,8 @@ class ModelTrainer:
                     gdl_mat=gdl_final.detach().cpu()
                     )
 
-            visualize_tensor(clear,key='clear',step=self.step + 1, loss=self.loss_type)
-            visualize_tensor(final,key='final',step=self.step + 1, loss=self.loss_type)
+            visualize_tensor(clear,key='clear',step=self.step, loss=self.loss_type)
+            visualize_tensor(final,key='final',step=self.step, loss=self.loss_type)
 
         return validation_loss
 
@@ -198,12 +198,13 @@ class ModelTrainer:
 
             train_loss, final = self.train()
             validation_loss = self.validate()
-            self.step += 1
 
             if hp.device.startswith('cuda'):
-                wandb.log({"Training Loss": train_loss, "Validation Loss": validation_loss})
+                wandb.log({"Training Loss": train_loss, "Validation Loss": validation_loss}, step=self.step)
             else:
                 pass
+        
+            self.step += 1
 
             validation_losses.append(validation_loss)
             print(f'Epoch: {epoch+1}/{self.epochs} | Train loss: {train_loss / len(self.train_loader):.4f} | Validation loss: {validation_loss / len(self.val_loader):.4f}')
