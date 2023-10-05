@@ -8,29 +8,26 @@ from utils import seed_everything
 seed_everything()
 
 # Training loop
-loss_types = ['phase'] 
+# Criterion, optimizer, scheduler
+model = DeepGriffinLim(blocks=hp.model_depth)
+criterion = nn.L1Loss(reduction='sum').to(device=hp.device)
+optimizer = torch.optim.Adam(model.parameters(), lr=hp.learning_rate, weight_decay=hp.weight_decay)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, min_lr=hp.min_lr, verbose=True)
 
-for loss_type in loss_types:
-    # Criterion, optimizer, scheduler
-    model = DeepGriffinLim(blocks=hp.model_depth)
-    criterion = nn.L1Loss(reduction='sum').to(device=hp.device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=hp.learning_rate, weight_decay=hp.weight_decay)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, min_lr=hp.min_lr, verbose=True)
+TrainingLoop = ModelTrainer(model=model,
+                            criterion=criterion,
+                            optimizer=optimizer,
+                            scheduler=scheduler,
+                            dataset=ds,
+                            batch_size=hp.batch_size,
+                            epochs=hp.epochs,
+                            loss_type=hp.loss_type,
+                            learning_rate=hp.learning_rate,
+                            save_path='./src/checkpoints',
+                            debug=True,
+                            device=hp.device,
+                            load_checkpoint=False,
+                            load_path='./src/checkpoints/')
 
-    TrainingLoop = ModelTrainer(model=model,
-                                criterion=criterion,
-                                optimizer=optimizer,
-                                scheduler=scheduler,
-                                dataset=ds,
-                                batch_size=hp.batch_size,
-                                epochs=hp.epochs,
-                                loss_type=loss_type,
-                                learning_rate=hp.learning_rate,
-                                save_path='./src/checkpoints',
-                                debug=True,
-                                device=hp.device,
-                                load_checkpoint=False,
-                                load_path='./src/checkpoints/')
-
-    # Training loop Execution
-    TrainingLoop.main()
+# Training loop Execution
+TrainingLoop.main()

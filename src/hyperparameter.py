@@ -30,6 +30,7 @@ class Hyperparameter:
     epochs: int = 100
     model_depth: int = 3
     data_mode = 'random'
+    loss_type = 'phase'
     scheduler: Any = field(default=None)
     criterion: Any = field(default=None)
     optimizer: Any = field(default=None)
