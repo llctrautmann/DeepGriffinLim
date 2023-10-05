@@ -1,6 +1,6 @@
 from tqdm import tqdm
 from torch.utils.data import DataLoader, Subset, random_split
-from utils import HealthCheckDashboard, send_push_notification, resize_signal_length, visualize_tensor, save_reconstruction
+from utils import HealthCheckDashboard, send_push_notification, resize_signal_length, visualize_tensor
 from hyperparameter import hp
 import torch
 from numpy import inf
@@ -143,7 +143,6 @@ class ModelTrainer:
         validation_loss = 0
         with torch.no_grad():
             for idx, val_batch in enumerate(self.val_loader):
-                print(f"IDX = {idx}")
                 clear, noisy, mag, label = val_batch
                 # Transfer batch to device
                 clear = clear.to(self.device)
@@ -171,8 +170,8 @@ class ModelTrainer:
                     gdl_mat=gdl_final.detach().cpu()
                     )
 
-            visualize_tensor(clear,key='clear',step=self.step, loss=self.loss_type)
-            visualize_tensor(final,key='final',step=self.step, loss=self.loss_type)
+            visualize_tensor(clear,key='clear',step=self.step + 1, loss=self.loss_type)
+            visualize_tensor(final,key='final',step=self.step + 1, loss=self.loss_type)
 
         return validation_loss
 
@@ -194,6 +193,7 @@ class ModelTrainer:
 
         loop = tqdm(range(self.epochs), disable=self.debug)
         for epoch in loop:
+            print(f'step counter = {self.step}')
             self.checkpoint = {'state_dict': self.model.state_dict(),'optimizer': self.optimizer.state_dict(), 'epoch': epoch, 'best_loss': self.best_loss}
 
             train_loss, final = self.train()
