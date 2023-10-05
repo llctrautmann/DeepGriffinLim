@@ -134,7 +134,7 @@ def visualize_tensor(tensor, key, loss, step):
 
         # Plot the real part
         im1 = axs[0].imshow(amptodb(real), cmap='magma')
-        axs[0].set_title('Mag')
+        axs[0].set_title('Magnitude')
 
         # Plot the imaginary part
         im2 = axs[1].imshow(imag, cmap='Blues')

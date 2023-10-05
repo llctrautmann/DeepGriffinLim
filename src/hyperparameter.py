@@ -18,16 +18,16 @@ class Hyperparameter:
     mel_spectrogram = None
     verbose: bool = False
     fixed_limit: bool = True
-    batch_size: int = 16
+    batch_size: int = 8
     batchnorm: bool = False
     num_workers: int = 8
 
     # Model args
-    subset_size: int = 800
+    subset_size: int = 500
     weight_decay: float = 0.0001
     learning_rate: float = 4e-6
     min_lr: float = 4e-10
-    epochs: int = 150
+    epochs: int = 100
     model_depth: int = 3
     data_mode = 'random'
     scheduler: Any = field(default=None)

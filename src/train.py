@@ -26,6 +26,9 @@ if hp.device.startswith('cuda'):
         "architecture": "Deep Griffin Lim",
         "dataset": "EC_BIRD",
         "epochs": hp.epochs,
+        "loss type": hp.loss_type,
+        "batch size": hp.batch_size,
+        "phase type": hp.data_mode,
         }
     )
 else:
@@ -128,13 +131,9 @@ class ModelTrainer:
 
             # Update progress bar
             loop.set_description(f"Batch [{idx + 1}/{self.train_loader.__len__()}]")
-            loop.set_postfix({'Batch loss': f'{train_loss:.4f}'})
 
             train_loss += loss.item()
 
-            if idx == 1:
-                continue
-                self.write_to_tensorboard(clear, z_tilda, residual, final)
         return train_loss, final
 
 
@@ -259,20 +258,19 @@ class ModelTrainer:
         if self.loss_type == 'L1':
             return self.criterion(z_tilda - clear, residual), gdl_clear, gdl_final, ifr_clear, ifr_final
         elif self.loss_type == 'phase':
-            return self.von_mises_loss(torch.angle(clear), torch.angle(final)), gdl_clear, gdl_final, ifr_clear, ifr_final
+            return self.von_mises_loss(y_true=torch.angle(clear), y_pred=torch.angle(final), kappa=1.0), gdl_clear, gdl_final, ifr_clear, ifr_final
+
+
         elif self.loss_type == 'gdl':
-            return self.von_mises_loss(torch.angle(clear), torch.angle(final)) + self.von_mises_loss(gdl_clear, gdl_final), gdl_clear, gdl_final, ifr_clear, ifr_final
+            return self.von_mises_loss(y_true=torch.angle(clear), y_pred=torch.angle(final), kappa=1.0) + self.von_mises_loss(y_true=gdl_clear, y_pred=gdl_final, kappa=1.0), gdl_clear, gdl_final, ifr_clear, ifr_final
         elif self.loss_type == 'ifr':
-            return self.von_mises_loss(torch.angle(clear), torch.angle(final)) + self.von_mises_loss(ifr_clear, ifr_final), gdl_clear, gdl_final, ifr_clear, ifr_final
+            return self.von_mises_loss(y_true=torch.angle(clear), y_pred=torch.angle(final), kappa=1.0) + self.von_mises_loss(y_true=ifr_clear, y_pred=ifr_final, kappa=1.0), gdl_clear, gdl_final, ifr_clear, ifr_final
         elif self.loss_type == 'all':
-            return self.von_mises_loss(torch.angle(clear), torch.angle(final)) + \
-                self.von_mises_loss(gdl_clear, gdl_final) + \
-                self.von_mises_loss(ifr_clear, ifr_final), gdl_clear, gdl_final, ifr_clear, ifr_final
+            return self.von_mises_loss(y_true=torch.angle(clear), y_pred=torch.angle(final), kappa=1.0) + \
+                self.von_mises_loss(y_true=gdl_clear, y_pred=gdl_final, kappa=1.0) + \
+                self.von_mises_loss(y_true=ifr_clear, y_pred=ifr_final, kappa=1.0), gdl_clear, gdl_final, ifr_clear, ifr_final
         else:
             raise ValueError(f"Unknown loss type: {self.loss_type}")
-
-        
-
 
     def saving_checkpoint(self):
         assert isinstance(self.checkpoint, dict), "self.checkpoint must be a dictionary"
@@ -281,7 +279,6 @@ class ModelTrainer:
         checkpoint_path = os.path.join(self.save_path, file_name)
         print(f"Saving checkpoint at {checkpoint_path}")
         torch.save(self.checkpoint, checkpoint_path)
-
 
     def loading_checkpoint(self):
         assert isinstance(self.load_path, str), "self.load_path must be a string"
@@ -302,36 +299,20 @@ class ModelTrainer:
             print(f"No checkpoint found at '{self.load_path}'")
             return 0
 
-
-    def von_mises_loss(self, y_true, y_pred):
+    def von_mises_loss(self, y_true, y_pred, kappa=1.0):
         """
         Von Mises loss function.
 
         Args:
         y_true (Tensor): Tensor of true values.
         y_pred (Tensor): Tensor of predicted values.
+        kappa (float): Concentration parameter.
 
         Returns:
         Tensor: Loss value.
         """
-        return -torch.sum(torch.cos(y_true - y_pred))
+        return torch.sum(1.0 - torch.exp(kappa * torch.cos(y_true - y_pred)))
             
-
-    def write_to_tensorboard(self, clear, z_tilda, residual, final):
-        # Convert the tensors to angle before visualizing
-        clear_grid = torchvision.utils.make_grid(torch.angle(clear),padding=20)
-        residual_grid = torchvision.utils.make_grid(torch.angle(residual),padding=20)
-        z_tilda_grid = torchvision.utils.make_grid(torch.angle(z_tilda),padding=20)
-        final_grid = torchvision.utils.make_grid(torch.angle(final),padding=20)
-
-        # Add the grid to tensorboard
-        self.writer.add_images("Clear", clear_grid, dataformats='CHW', global_step=self.step)
-        self.writer.add_images("Residual Maps", residual_grid, dataformats='CHW', global_step=self.step)
-        self.writer.add_images("z_tilda", z_tilda_grid, dataformats='CHW', global_step=self.step)
-        self.writer.add_images("Final", final_grid, dataformats='CHW', global_step=self.step)
-        self.step += 1
-
-
     def healthcheck(self):
         dashboard = HealthCheckDashboard(self.train_loader, self.model, self.writer)
         dashboard.perform_healthcheck()
@@ -403,7 +384,6 @@ class ModelTrainer:
         # Log the image to wandb
         if hp.device.startswith('cuda'):
             wandb.log({"Phases": [wandb.Image(img_path, caption=f"Epoch: {epoch}, Loss: {loss}")]})
-
 
     @staticmethod
     def create_derivative(rand_mat):
