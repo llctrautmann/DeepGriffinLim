@@ -18,9 +18,9 @@ class Hyperparameter:
     mel_spectrogram = None
     verbose: bool = False
     fixed_limit: bool = True
-    batch_size: int = 32
+    batch_size: int = 16
     batchnorm: bool = False
-    num_workers: int = 16
+    num_workers: int = 8
 
     # Model args
     subset_size: int = 800
