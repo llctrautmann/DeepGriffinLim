@@ -128,9 +128,9 @@ def visualize_tensor(clear, recon, key, loss, step):
     amptodb = librosa.amplitude_to_db
 
     # convert to numpy and detach from the graph
-    real = real.detach().numpy()
-    imag = imag.detach().numpy()
-    recon = recon.detach().numpy()
+    real = real.detach().cpu().numpy()
+    imag = imag.detach().cpu().numpy()
+    recon = recon.detach().cpu().numpy()
 
     # Create a grid of subplots for real and imaginary parts
     fig, axs = plt.subplots(1, 3, figsize=(30, 5))
