@@ -362,33 +362,7 @@ class ModelTrainer:
             torchaudio.save(path, wav, hp.sampling_rate//2)
             wandb.log({"audio noisy": wandb.Audio(wav, caption=f"Noisy_{idx}", sample_rate=hp.sampling_rate//2)})
         print('Training complete')
-
-    @staticmethod
-    def create_derivative(rand_mat):
-        """
-        Compute differences between consecutive columns and rows of a matrix.
-        
-        Parameters:
-        - rand_mat (torch.Tensor): Input matrix
-        
-        Returns:
-        - if_mat (torch.Tensor): Differences between consecutive columns
-        - gdl_mat (torch.Tensor): Differences between consecutive rows
-        """
-        
-        # Compute differences between consecutive columns
-        if_mat = torch.cat([rand_mat[:, :, :, 1:] - rand_mat[:, :, :, :-1], rand_mat[:, :, :, -1:]], dim=3)
-        
-        # Compute differences between consecutive rows
-        gdl_mat = torch.cat([-rand_mat[:, :, 1:, :] + rand_mat[:, :, :-1, :], rand_mat[:, :, -1:, :]], dim=2)
-
-        # Wrap the derivatives into the range -pi to pi
-        if_mat = torch.remainder(if_mat + np.pi, 2 * np.pi) - np.pi
-        gdl_mat = torch.remainder(gdl_mat + np.pi, 2 * np.pi) - np.pi
-        
-        return if_mat, gdl_mat
-
-    @staticmethod
+    
     def plot_phases(self, orientation='horizontal', epoch=None, loss=None, include_phase=True, stft=None, if_mat=None, gdl_mat=None):
         if orientation == 'vertical':
             fig, axs = plt.subplots(2, 2, figsize=(15, 15)) if include_phase else plt.subplots(3, 1, figsize=(15, 20))
@@ -426,3 +400,30 @@ class ModelTrainer:
         # Log the image to wandb
         if hp.device.startswith('cuda'):
             wandb.log({"Phases": [wandb.Image(img_path, caption=f"Epoch: {epoch}, Loss: {loss}")]})
+
+
+    @staticmethod
+    def create_derivative(rand_mat):
+        """
+        Compute differences between consecutive columns and rows of a matrix.
+        
+        Parameters:
+        - rand_mat (torch.Tensor): Input matrix
+        
+        Returns:
+        - if_mat (torch.Tensor): Differences between consecutive columns
+        - gdl_mat (torch.Tensor): Differences between consecutive rows
+        """
+        
+        # Compute differences between consecutive columns
+        if_mat = torch.cat([rand_mat[:, :, :, 1:] - rand_mat[:, :, :, :-1], rand_mat[:, :, :, -1:]], dim=3)
+        
+        # Compute differences between consecutive rows
+        gdl_mat = torch.cat([-rand_mat[:, :, 1:, :] + rand_mat[:, :, :-1, :], rand_mat[:, :, -1:, :]], dim=2)
+
+        # Wrap the derivatives into the range -pi to pi
+        if_mat = torch.remainder(if_mat + np.pi, 2 * np.pi) - np.pi
+        gdl_mat = torch.remainder(gdl_mat + np.pi, 2 * np.pi) - np.pi
+        
+        return if_mat, gdl_mat
+

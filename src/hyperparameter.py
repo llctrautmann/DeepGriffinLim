@@ -26,8 +26,8 @@ class Hyperparameter:
     subset_size: int = 500
     weight_decay: float = 0.0001
     learning_rate: float = 4e-6
-    min_lr: float = 4e-9
-    epochs: int = 50
+    min_lr: float = 4e-10
+    epochs: int = 150
     model_depth: int = 3
     data_mode = 'random'
     scheduler: Any = field(default=None)
