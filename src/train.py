@@ -326,7 +326,7 @@ class ModelTrainer:
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
             torchaudio.save(path, wav, hp.sampling_rate//2)
-            wandb.log({"audio clear": wandb.Audio(wav.detach().numpy().reshape(-1), caption=f"Clear_{idx}", sample_rate=hp.sampling_rate//2)})
+            wandb.log({f"audio clear {idx}": wandb.Audio(wav.detach().numpy().reshape(-1), caption=f"Clear_{idx}", sample_rate=hp.sampling_rate//2)})
 
         for idx in range(final.shape[0]):
             sample = final[idx, ...].cpu().detach()
@@ -334,7 +334,7 @@ class ModelTrainer:
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
             torchaudio.save(path, wav, hp.sampling_rate//2)
-            wandb.log({"audio recon": wandb.Audio(wav.detach().numpy().reshape(-1), caption=f"Recon_{idx}", sample_rate=hp.sampling_rate//2)})
+            wandb.log({f"audio recon {idx}": wandb.Audio(wav.detach().numpy().reshape(-1), caption=f"Recon_{idx}", sample_rate=hp.sampling_rate//2)})
 
         for idx in range(noisy_signal.shape[0]):
             sample = noisy_signal[idx, ...].cpu().detach()
@@ -342,7 +342,7 @@ class ModelTrainer:
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
             torchaudio.save(path, wav, hp.sampling_rate//2)
-            wandb.log({"audio noisy": wandb.Audio(wav.detach().numpy().reshape(-1), caption=f"Noisy_{idx}", sample_rate=hp.sampling_rate//2)})
+            wandb.log({f"audio noisy {idx}": wandb.Audio(wav.detach().numpy().reshape(-1), caption=f"Noisy_{idx}", sample_rate=hp.sampling_rate//2)})
         print('Training complete')
     
     def plot_phases(self, orientation='horizontal', epoch=None, loss=None, include_phase=True, stft=None, final_stft=None, if_mat=None, gdl_mat=None):
