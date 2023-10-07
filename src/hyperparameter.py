@@ -27,9 +27,9 @@ class Hyperparameter:
     weight_decay: float = 0.0001
     learning_rate: float = 3e-4
     min_lr: float = 3e-7
-    epochs: int = 150
+    epochs: int = 1
     model_depth: int = 5
-    data_mode = 'denoise'
+    data_mode = 'random'
     loss_type = 'all'
     scheduler: Any = field(default=None)
     criterion: Any = field(default=None)
