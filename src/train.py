@@ -136,7 +136,7 @@ class ModelTrainer:
 
             train_loss += loss.item()
 
-        return train_loss, final
+        return train_loss / len(self.train_loader), final
 
 
     def validate(self):
@@ -173,7 +173,7 @@ class ModelTrainer:
                     )
 
             visualize_tensor(clear=clear,recon=final,key='Summary',step=self.step, loss=self.loss_type)
-        return validation_loss
+        return validation_loss / len(self.val_loader)
 
     def main(self):
         print(f'Initialising model on {self.device}.')
