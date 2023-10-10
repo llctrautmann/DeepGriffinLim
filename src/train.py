@@ -14,25 +14,27 @@ import librosa
 import matplotlib.pyplot as plt
 import wandb
 
-if hp.device.startswith('cuda'):
-    # start a new wandb run to track this script
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="Phase Retrieval",
+# wandb_mode = 'no-sweep'
+
+# if hp.device.startswith('cuda'):
+#     # start a new wandb run to track this script
+#     wandb.init(
+#         # set the wandb project where this run will be logged
+#         project="Phase Retrieval",
         
-        # track hyperparameters and run metadata
-        config={
-        "learning_rate": hp.learning_rate,
-        "architecture": "Deep Griffin Lim",
-        "dataset": "EC_BIRD",
-        "epochs": hp.epochs,
-        "loss type": hp.loss_type,
-        "batch size": hp.batch_size,
-        "phase type": hp.data_mode,
-        }
-    )
-else:
-    pass
+#         # track hyperparameters and run metadata
+#         config={
+#         "learning_rate": wandb.config.learning_rate if wandb_mode == 'sweep' else hp.learning_rate,
+#         "architecture": "Deep Griffin Lim",
+#         "dataset": "EC_BIRD",
+#         "epochs": hp.epochs,
+#         "loss type": hp.loss_type,
+#         "batch size": wandb.config.batch_size if wandb_mode == 'sweep' else hp.batch_size,
+#         "phase type": hp.data_mode,
+#         }
+#     )
+# else:
+#     pass
 
 
 class ModelTrainer:
@@ -187,8 +189,6 @@ class ModelTrainer:
             print('No checkpoint loaded, weights will be initialised randomly.')
 
         self.model = self.model.to(self.device)
-        validation_losses = []
-
         loop = tqdm(range(self.epochs), disable=self.debug)
         for epoch in loop:
             self.step += 1
@@ -200,9 +200,6 @@ class ModelTrainer:
             else:
                 pass
         
-            validation_losses.append(validation_loss)
-            print(f'Epoch: {epoch+1}/{self.epochs} | Train loss: {train_loss / len(self.train_loader):.4f} | Validation loss: {validation_loss / len(self.val_loader):.4f}')
-
             if not self.debug:
                 send_push_notification(epoch, validation_loss)
             else:
@@ -268,6 +265,11 @@ class ModelTrainer:
             return self.von_mises_loss(y_true=torch.angle(clear), y_pred=torch.angle(final), kappa=1.0) + \
                 self.von_mises_loss(y_true=gdl_clear, y_pred=gdl_final, kappa=1.0) + \
                 self.von_mises_loss(y_true=ifr_clear, y_pred=ifr_final, kappa=1.0), gdl_clear, gdl_final, ifr_clear, ifr_final
+        elif self.loss_type == 'all_l1':
+            return self.criterion(z_tilda - clear, residual) + \
+                0.5 * self.von_mises_loss(y_true=torch.angle(clear), y_pred=torch.angle(final), kappa=1.0) + \
+                0.25  * self.von_mises_loss(y_true=gdl_clear, y_pred=gdl_final, kappa=1.0) + \
+                0.25 * self.von_mises_loss(y_true=ifr_clear, y_pred=ifr_final, kappa=1.0), gdl_clear, gdl_final, ifr_clear, ifr_final
         else:
             raise ValueError(f"Unknown loss type: {self.loss_type}")
 
