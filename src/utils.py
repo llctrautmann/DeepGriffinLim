@@ -144,14 +144,14 @@ def visualize_tensor(clear, recon, key, loss, step):
         fig.colorbar(im, ax=axs[i])
 
     # Save the plot to a file in a specified folder
-    output_dir = os.path.join('.', 'out', str(loss), 'img')
+    output_dir = os.path.join('..', 'out', str(loss), 'img')
     os.makedirs(output_dir, exist_ok=True)
     img_path = os.path.join(output_dir, f'im_{step}_{key}_type_{loss}.png')
     plt.savefig(img_path)
     plt.close()
 
     # Log the image file with weights and biases
-    if hp.device.startswith('cuda'):
+    if hp.device.startswith(hp.wandb_device):
         wandb.log({f"{key}_type_{loss}": [wandb.Image(img_path, caption=f"{key}_type_{loss}")]}, step=step)
 
 

@@ -14,29 +14,6 @@ import librosa
 import matplotlib.pyplot as plt
 import wandb
 
-# wandb_mode = 'no-sweep'
-
-# if hp.device.startswith('cuda'):
-#     # start a new wandb run to track this script
-#     wandb.init(
-#         # set the wandb project where this run will be logged
-#         project="Phase Retrieval",
-        
-#         # track hyperparameters and run metadata
-#         config={
-#         "learning_rate": wandb.config.learning_rate if wandb_mode == 'sweep' else hp.learning_rate,
-#         "architecture": "Deep Griffin Lim",
-#         "dataset": "EC_BIRD",
-#         "epochs": hp.epochs,
-#         "loss type": hp.loss_type,
-#         "batch size": wandb.config.batch_size if wandb_mode == 'sweep' else hp.batch_size,
-#         "phase type": hp.data_mode,
-#         }
-#     )
-# else:
-#     pass
-
-
 class ModelTrainer:
     def __init__(self, model, criterion, optimizer, dataset, batch_size, epochs, learning_rate, loss_type='phase', min_lr=5e-8, scheduler=None, patience=10, device='cpu', save_path='./checkpoints/', load_path='./checkpoints/', debug=True, save_checkpoint=True, load_checkpoint=False, verbose=True):
         self.model = model
@@ -107,7 +84,7 @@ class ModelTrainer:
     def train(self):
         self.model.train()
         train_loss = 0
-        loop = tqdm(self.train_loader, disable=not self.debug)
+        loop = tqdm(self.train_loader, disable=True)
         for idx, batch in enumerate(loop):
             clear, noisy, mag, label = batch
 
@@ -195,13 +172,13 @@ class ModelTrainer:
             self.checkpoint = {'state_dict': self.model.state_dict(),'optimizer': self.optimizer.state_dict(), 'epoch': epoch, 'best_loss': self.best_loss}
             train_loss, final = self.train()
             validation_loss = self.validate()
-            if hp.device.startswith('cuda'):
+            if hp.device.startswith(hp.wandb_device):
                 wandb.log({"Training Loss": train_loss, "Validation Loss": validation_loss}, step=self.step)
             else:
                 pass
         
             if not self.debug:
-                send_push_notification(epoch, validation_loss)
+                send_push_notification(epoch=epoch, loss_type=self.loss_type, message=validation_loss)
             else:
                 pass
 
@@ -324,7 +301,7 @@ class ModelTrainer:
         '''
         for idx in range(clear.shape[0]):
             sample = clear[idx, ...].cpu().detach()
-            path = f'./out/{self.loss_type}/clear_{idx}_type_{self.loss_type}.wav'
+            path = f'../out/{self.loss_type}/clear_{idx}_type_{self.loss_type}.wav'
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
             torchaudio.save(path, wav, hp.sampling_rate//2)
@@ -332,7 +309,7 @@ class ModelTrainer:
 
         for idx in range(final.shape[0]):
             sample = final[idx, ...].cpu().detach()
-            path = f'./out/{self.loss_type}/recon_{idx}_type_{self.loss_type}.wav'
+            path = f'../out/{self.loss_type}/recon_{idx}_type_{self.loss_type}.wav'
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
             torchaudio.save(path, wav, hp.sampling_rate//2)
@@ -340,7 +317,7 @@ class ModelTrainer:
 
         for idx in range(noisy_signal.shape[0]):
             sample = noisy_signal[idx, ...].cpu().detach()
-            path = f'./out/{self.loss_type}/noisy_{idx}_type_{self.loss_type}.wav'
+            path = f'../out/{self.loss_type}/noisy_{idx}_type_{self.loss_type}.wav'
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
             torchaudio.save(path, wav, hp.sampling_rate//2)
@@ -377,13 +354,13 @@ class ModelTrainer:
             fig.colorbar(axs[1][1].collections[0], ax=axs[1][1])
 
         plt.tight_layout()
-        img_path = f'./out/img/{epoch}_{loss}.png'
+        img_path = f'../out/img/{epoch}_{loss}.png'
         print(f'Saving image to {img_path}')
         plt.savefig(img_path)
         plt.close()
 
         # Log the image to wandb
-        if hp.device.startswith('cuda'):
+        if hp.device.startswith(hp.wandb_device):
             wandb.log({"Phases": [wandb.Image(img_path, caption=f"Epoch: {epoch}, Loss: {loss}")]})
 
     @staticmethod

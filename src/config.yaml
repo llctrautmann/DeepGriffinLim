@@ -3,10 +3,10 @@ method: random
 metric:
   name: Validation Loss
   goal: minimize
-parameter:
+parameters:
   learning_rate:
-    min: 0.0003
-    max: 0.03
+    min: 0.0000003
+    max: 0.0003
   batch_size:
     min: 4
     max: 32
