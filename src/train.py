@@ -78,6 +78,7 @@ class ModelTrainer:
         self.test_loader = DataLoader(testset, batch_size=1, shuffle=False,pin_memory=True)
 
         print(f"Split dataset into {len(trainset)} training samples, {len(validset)} validation samples, and {len(testset)} test samples")
+
         return trainset, validset, testset
 
     
@@ -306,7 +307,6 @@ class ModelTrainer:
             path = f'../out/Sample_no_{sample_no}_{self.loss_type}/clear_{idx}_type_{self.loss_type}.wav'
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
-            torchaudio.save(path, wav, hp.sampling_rate//2)
             wandb.log({f"audio clear {idx}": wandb.Audio(wav.detach().numpy().reshape(-1), caption=f"Clear_{idx}", sample_rate=hp.sampling_rate//2)})
 
         for idx in range(final.shape[0]):
@@ -314,7 +314,6 @@ class ModelTrainer:
             path = f'../out/Sample_no_{sample_no}_{self.loss_type}/recon_{idx}_type_{self.loss_type}.wav'
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
-            torchaudio.save(path, wav, hp.sampling_rate//2)
             wandb.log({f"audio recon {idx}": wandb.Audio(wav.detach().numpy().reshape(-1), caption=f"Recon_{idx}", sample_rate=hp.sampling_rate//2)})
 
         for idx in range(noisy_signal.shape[0]):
@@ -322,7 +321,6 @@ class ModelTrainer:
             path = f'../Sample_no_{sample_no}_out/{self.loss_type}/noisy_{idx}_type_{self.loss_type}.wav'
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
-            torchaudio.save(path, wav, hp.sampling_rate//2)
             wandb.log({f"audio noisy {idx}": wandb.Audio(wav.detach().numpy().reshape(-1), caption=f"Noisy_{idx}", sample_rate=hp.sampling_rate//2)})
         print('Training complete')
     
