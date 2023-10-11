@@ -89,13 +89,13 @@ load_dotenv()
 APP_TOKEN = os.getenv('APP_TOKEN')
 USER_KEY = os.getenv('USER_KEY')
 
-def send_push_notification(epoch, message):
+def send_push_notification(epoch, loss_type, message):
     conn = http.client.HTTPSConnection("api.pushover.net:443")
     conn.request("POST", "/1/messages.json",
       urllib.parse.urlencode({
         "token": APP_TOKEN,
         "user": USER_KEY,
-        "message": f"Epoch {epoch} completed: validation loss = {message}",
+        "message": f"Loss Tyoe: {loss_type} | Epoch: {epoch} | VLoss = {message}",
       }), { "Content-type": "application/x-www-form-urlencoded" })
     response = conn.getresponse()
 
