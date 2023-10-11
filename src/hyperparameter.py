@@ -27,18 +27,18 @@ class Hyperparameter:
     weight_decay: float = 0.0001
     learning_rate: float = 3e-4
     min_lr: float = 3e-7
-    epochs: int = 3
+    epochs: int = 30
     model_depth: int = 5
     data_mode = 'denoise'
-    loss_type = 'L1'
+    loss_type = 'all_l1'
     scheduler: Any = field(default=None)
     criterion: Any = field(default=None)
     optimizer: Any = field(default=None)
     device = 'cuda:7' if torch.cuda.is_available() else 'cpu'
 
     # wandb
-    wandb_mode: str = 'sweep'
-    wandb_device: str = 'cpu'
+    wandb_mode: str = 'no-sweep'
+    wandb_device: str = 'cuda'
     
 
 
