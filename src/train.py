@@ -247,9 +247,9 @@ class ModelTrainer:
                 self.von_mises_loss(y_true=ifr_clear, y_pred=ifr_final, kappa=1.0), gdl_clear, gdl_final, ifr_clear, ifr_final
         elif self.loss_type == 'all_l1':
             return self.criterion(z_tilda - clear, residual) + \
-                0.5 * self.von_mises_loss(y_true=torch.angle(clear), y_pred=torch.angle(final), kappa=1.0) + \
-                0.25  * self.von_mises_loss(y_true=gdl_clear, y_pred=gdl_final, kappa=1.0) + \
-                0.25 * self.von_mises_loss(y_true=ifr_clear, y_pred=ifr_final, kappa=1.0), gdl_clear, gdl_final, ifr_clear, ifr_final
+                self.von_mises_loss(y_true=torch.angle(clear), y_pred=torch.angle(final), kappa=1.0) + \
+                self.von_mises_loss(y_true=gdl_clear, y_pred=gdl_final, kappa=1.0) + \
+                self.von_mises_loss(y_true=ifr_clear, y_pred=ifr_final, kappa=1.0), gdl_clear, gdl_final, ifr_clear, ifr_final
         else:
             raise ValueError(f"Unknown loss type: {self.loss_type}")
 

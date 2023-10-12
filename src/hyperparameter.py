@@ -25,9 +25,9 @@ class Hyperparameter:
     # Model args
     subset_size: int = 20
     weight_decay: float = 0.0001
-    learning_rate: float = 3e-4
-    min_lr: float = 3e-7
-    epochs: int = 30
+    learning_rate: float = 4e-5
+    min_lr: float = 4e-7
+    epochs: int = 70
     model_depth: int = 5
     data_mode = 'denoise'
     loss_type = 'all_l1'

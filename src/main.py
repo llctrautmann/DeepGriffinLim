@@ -44,7 +44,7 @@ TrainingLoop = ModelTrainer(model=model,
                             loss_type=hp.loss_type,
                             learning_rate=wandb.config.learning_rate if hp.wandb_mode == 'sweep' else hp.learning_rate,
                             save_path=hp.save_path,
-                            debug=True,
+                            debug=False,
                             device=hp.device,
                             load_checkpoint=False,
                             load_path=hp.load_path)
