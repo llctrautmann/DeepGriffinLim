@@ -14,27 +14,6 @@ import librosa
 import matplotlib.pyplot as plt
 import wandb
 
-if hp.device.startswith('cuda'):
-    # start a new wandb run to track this script
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="Phase Retrieval",
-        
-        # track hyperparameters and run metadata
-        config={
-        "learning_rate": hp.learning_rate,
-        "architecture": "Deep Griffin Lim",
-        "dataset": "EC_BIRD",
-        "epochs": hp.epochs,
-        "loss type": hp.loss_type,
-        "batch size": hp.batch_size,
-        "phase type": hp.data_mode,
-        }
-    )
-else:
-    pass
-
-
 class ModelTrainer:
     def __init__(self, model, criterion, optimizer, dataset, batch_size, epochs, learning_rate, loss_type='phase', min_lr=5e-8, scheduler=None, patience=10, device='cpu', save_path='./checkpoints/', load_path='./checkpoints/', debug=True, save_checkpoint=True, load_checkpoint=False, verbose=True):
         self.model = model
@@ -96,16 +75,17 @@ class ModelTrainer:
         # Create dataloaders
         self.train_loader = DataLoader(trainset, batch_size=self.batch_size, shuffle=True,pin_memory=True)
         self.val_loader = DataLoader(validset, batch_size=self.batch_size, shuffle=False,pin_memory=True)
-        self.test_loader = DataLoader(testset, batch_size=self.batch_size, shuffle=False,pin_memory=True)
+        self.test_loader = DataLoader(testset, batch_size=1, shuffle=False,pin_memory=True)
 
         print(f"Split dataset into {len(trainset)} training samples, {len(validset)} validation samples, and {len(testset)} test samples")
+
         return trainset, validset, testset
 
     
     def train(self):
         self.model.train()
         train_loss = 0
-        loop = tqdm(self.train_loader, disable=not self.debug)
+        loop = tqdm(self.train_loader, disable=True)
         for idx, batch in enumerate(loop):
             clear, noisy, mag, label = batch
 
@@ -134,7 +114,7 @@ class ModelTrainer:
 
             train_loss += loss.item()
 
-        return train_loss, final
+        return train_loss / len(self.train_loader), final
 
 
     def validate(self):
@@ -171,7 +151,7 @@ class ModelTrainer:
                     )
 
             visualize_tensor(clear=clear,recon=final,key='Summary',step=self.step, loss=self.loss_type)
-        return validation_loss
+        return validation_loss / len(self.val_loader)
 
     def main(self):
         print(f'Initialising model on {self.device}.')
@@ -187,24 +167,19 @@ class ModelTrainer:
             print('No checkpoint loaded, weights will be initialised randomly.')
 
         self.model = self.model.to(self.device)
-        validation_losses = []
-
         loop = tqdm(range(self.epochs), disable=self.debug)
         for epoch in loop:
             self.step += 1
             self.checkpoint = {'state_dict': self.model.state_dict(),'optimizer': self.optimizer.state_dict(), 'epoch': epoch, 'best_loss': self.best_loss}
             train_loss, final = self.train()
             validation_loss = self.validate()
-            if hp.device.startswith('cuda'):
+            if hp.device.startswith(hp.wandb_device):
                 wandb.log({"Training Loss": train_loss, "Validation Loss": validation_loss}, step=self.step)
             else:
                 pass
         
-            validation_losses.append(validation_loss)
-            print(f'Epoch: {epoch+1}/{self.epochs} | Train loss: {train_loss / len(self.train_loader):.4f} | Validation loss: {validation_loss / len(self.val_loader):.4f}')
-
             if not self.debug:
-                send_push_notification(epoch, validation_loss)
+                send_push_notification(epoch=epoch, loss_type=self.loss_type, message=validation_loss)
             else:
                 pass
 
@@ -228,6 +203,7 @@ class ModelTrainer:
         with torch.no_grad():
             self.model.eval()
             testing_loss = 0
+            sample_no = 0
             for batch in self.test_loader:
                 clear, noisy, mag, label = batch
                 # Transfer batch to device
@@ -246,7 +222,8 @@ class ModelTrainer:
                 loss, gdl_clear, gdl_final, ifr_clear, ifr_final = self.compute_loss(z_tilda, clear, residual, final)
 
                 testing_loss += loss.item()
-            self.return_audio_sample(clear=clear,noisy_signal=noisy, final=final)
+                self.return_audio_sample(clear=clear,noisy_signal=noisy, final=final, sample_no=sample_no)
+                sample_no += 1
         return testing_loss
 
 
@@ -266,6 +243,11 @@ class ModelTrainer:
             return self.von_mises_loss(y_true=torch.angle(clear), y_pred=torch.angle(final), kappa=1.0) + self.von_mises_loss(y_true=ifr_clear, y_pred=ifr_final, kappa=1.0), gdl_clear, gdl_final, ifr_clear, ifr_final
         elif self.loss_type == 'all':
             return self.von_mises_loss(y_true=torch.angle(clear), y_pred=torch.angle(final), kappa=1.0) + \
+                self.von_mises_loss(y_true=gdl_clear, y_pred=gdl_final, kappa=1.0) + \
+                self.von_mises_loss(y_true=ifr_clear, y_pred=ifr_final, kappa=1.0), gdl_clear, gdl_final, ifr_clear, ifr_final
+        elif self.loss_type == 'all_l1':
+            return self.criterion(z_tilda - clear, residual) + \
+                self.von_mises_loss(y_true=torch.angle(clear), y_pred=torch.angle(final), kappa=1.0) + \
                 self.von_mises_loss(y_true=gdl_clear, y_pred=gdl_final, kappa=1.0) + \
                 self.von_mises_loss(y_true=ifr_clear, y_pred=ifr_final, kappa=1.0), gdl_clear, gdl_final, ifr_clear, ifr_final
         else:
@@ -316,32 +298,29 @@ class ModelTrainer:
         dashboard = HealthCheckDashboard(self.train_loader, self.model, self.writer)
         dashboard.perform_healthcheck()
 
-    def return_audio_sample(self, noisy_signal, clear, final, length=hp.length * hp.sampling_rate):
+    def return_audio_sample(self, noisy_signal, clear, final, length=hp.length * hp.sampling_rate,sample_no=0):
         '''
         Convert clear and reconstruction to audio and save to disk
         '''
         for idx in range(clear.shape[0]):
             sample = clear[idx, ...].cpu().detach()
-            path = f'./out/{self.loss_type}/clear_{idx}_type_{self.loss_type}.wav'
+            path = f'../out/Sample_no_{sample_no}_{self.loss_type}/clear_{idx}_type_{self.loss_type}.wav'
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
-            torchaudio.save(path, wav, hp.sampling_rate//2)
             wandb.log({f"audio clear {idx}": wandb.Audio(wav.detach().numpy().reshape(-1), caption=f"Clear_{idx}", sample_rate=hp.sampling_rate//2)})
 
         for idx in range(final.shape[0]):
             sample = final[idx, ...].cpu().detach()
-            path = f'./out/{self.loss_type}/recon_{idx}_type_{self.loss_type}.wav'
+            path = f'../out/Sample_no_{sample_no}_{self.loss_type}/recon_{idx}_type_{self.loss_type}.wav'
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
-            torchaudio.save(path, wav, hp.sampling_rate//2)
             wandb.log({f"audio recon {idx}": wandb.Audio(wav.detach().numpy().reshape(-1), caption=f"Recon_{idx}", sample_rate=hp.sampling_rate//2)})
 
         for idx in range(noisy_signal.shape[0]):
             sample = noisy_signal[idx, ...].cpu().detach()
-            path = f'./out/{self.loss_type}/noisy_{idx}_type_{self.loss_type}.wav'
+            path = f'../Sample_no_{sample_no}_out/{self.loss_type}/noisy_{idx}_type_{self.loss_type}.wav'
             wav = torch.istft(sample, n_fft=hp.n_fft, hop_length=hp.hop_length)
             wav = resize_signal_length(wav, length)
-            torchaudio.save(path, wav, hp.sampling_rate//2)
             wandb.log({f"audio noisy {idx}": wandb.Audio(wav.detach().numpy().reshape(-1), caption=f"Noisy_{idx}", sample_rate=hp.sampling_rate//2)})
         print('Training complete')
     
@@ -375,13 +354,13 @@ class ModelTrainer:
             fig.colorbar(axs[1][1].collections[0], ax=axs[1][1])
 
         plt.tight_layout()
-        img_path = f'./out/img/{epoch}_{loss}.png'
+        img_path = f'../out/img/{epoch}_{loss}.png'
         print(f'Saving image to {img_path}')
         plt.savefig(img_path)
         plt.close()
 
         # Log the image to wandb
-        if hp.device.startswith('cuda'):
+        if hp.device.startswith(hp.wandb_device):
             wandb.log({"Phases": [wandb.Image(img_path, caption=f"Epoch: {epoch}, Loss: {loss}")]})
 
     @staticmethod

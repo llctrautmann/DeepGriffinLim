@@ -1,0 +1,15 @@
+program: main.py
+method: random
+metric:
+  name: Validation Loss
+  goal: minimize
+parameters:
+  learning_rate:
+    min: 0.0000003
+    max: 0.0003
+  batch_size:
+    min: 4
+    max: 32
+  weight_decay:
+    min: 0.0001
+    max: 0.01

@@ -89,13 +89,13 @@ load_dotenv()
 APP_TOKEN = os.getenv('APP_TOKEN')
 USER_KEY = os.getenv('USER_KEY')
 
-def send_push_notification(epoch, message):
+def send_push_notification(epoch, loss_type, message):
     conn = http.client.HTTPSConnection("api.pushover.net:443")
     conn.request("POST", "/1/messages.json",
       urllib.parse.urlencode({
         "token": APP_TOKEN,
         "user": USER_KEY,
-        "message": f"Epoch {epoch} completed: validation loss = {message}",
+        "message": f"Loss Tyoe: {loss_type} | Epoch: {epoch} | VLoss = {message}",
       }), { "Content-type": "application/x-www-form-urlencoded" })
     response = conn.getresponse()
 
@@ -144,14 +144,14 @@ def visualize_tensor(clear, recon, key, loss, step):
         fig.colorbar(im, ax=axs[i])
 
     # Save the plot to a file in a specified folder
-    output_dir = os.path.join('.', 'out', str(loss), 'img')
+    output_dir = os.path.join('..', 'out', str(loss), 'img')
     os.makedirs(output_dir, exist_ok=True)
     img_path = os.path.join(output_dir, f'im_{step}_{key}_type_{loss}.png')
     plt.savefig(img_path)
     plt.close()
 
     # Log the image file with weights and biases
-    if hp.device.startswith('cuda'):
+    if hp.device.startswith(hp.wandb_device):
         wandb.log({f"{key}_type_{loss}": [wandb.Image(img_path, caption=f"{key}_type_{loss}")]}, step=step)
 
 
