@@ -6,6 +6,7 @@ import torchaudio
 import random
 import librosa
 from hyperparameter import hp
+import numpy as np
 
 
 class AvianNatureSounds(Dataset):
@@ -49,11 +50,26 @@ class AvianNatureSounds(Dataset):
             n_iter=15,
             momentum=0.99,
         )
+        self.pretrained_phases = None
+        self.pretrained = []
+        self.pretrained_phases = []
+        self.original = []
+        self.stft = []
+        self.magnitude = []
+        self.label = []
+        if hp.data_mode == 'gla-pretrain':
+            self.precompute_gla_phases()
 
     def __len__(self):
         return len(self.annotation_file)
 
     def __getitem__(self, index):
+        if hp.data_mode == "gla-pretrain":
+            return torch.from_numpy(self.stft[index]),
+            torch.from_numpy(self.pretrained_phases[index]),
+            torch.from_numpy(self.magnitude[index]),
+            self.label[index]
+
         if self.mode == "stft":
             audio_sample_path = os.path.join(
                 self.root_dir, os.listdir(self.root_dir)[index]
@@ -114,11 +130,41 @@ class AvianNatureSounds(Dataset):
 
             if hp.data_mode == 'denoise':
                 return stft, noisy_sig, magnitude, label
-            elif hp.data_mode == 'gla-pretrain':
-                gla_pretrain = torch.stft(self.griffin_lim(magnitude), n_fft=1024, hop_length=512, return_complex=True)
-                return stft, gla_pretrain , magnitude, label
             else:
                 return stft, random_init, magnitude, label
+
+    def precompute_gla_phases(self):
+        for index in range(len(self.annotation_file)):
+            audio_sample_path = os.path.join(
+                self.root_dir, os.listdir(self.root_dir)[index]
+            )
+
+            # Check if the file is a .wav file
+            if not audio_sample_path.endswith('.wav'):
+                continue
+            signal, sr = librosa.load(audio_sample_path, sr=self.sampling_rate)
+            signal_length = signal.shape[0]
+            signal = signal.reshape(1, -1)
+            if self.downsample:
+                signal = self.downsample_waveform(signal)
+            signal = self.clip(signal, sr, self.length, offset='random')
+            stft = librosa.stft(
+                signal,
+                n_fft=self.n_fft,
+                hop_length=self.hop_length)
+
+            magnitude = np.abs(stft)
+            self.magnitude.append(magnitude)
+
+            self.stft.append(stft)
+            self.label.append(self.annotation_file.iloc[index][self.column])
+
+            self.original.append(signal)
+            gla_pretrained = librosa.griffinlim(magnitude,n_iter=1, n_fft=1024, hop_length=512,length=signal.shape[1])
+            gla_pretrained_phase = np.angle(librosa.stft(gla_pretrained, n_fft=1024, hop_length=512))
+
+            self.pretrained.append(gla_pretrained)
+            self.pretrained_phases.append(gla_pretrained_phase)
 
     @torch.no_grad()
     def clip(self, audio_signal, sr, desired_length, offset=None):
