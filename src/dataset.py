@@ -65,10 +65,7 @@ class AvianNatureSounds(Dataset):
 
     def __getitem__(self, index):
         if hp.data_mode == "gla-pretrain":
-            return torch.from_numpy(self.stft[index]),
-            torch.from_numpy(self.pretrained_phases[index]),
-            torch.from_numpy(self.magnitude[index]),
-            self.label[index]
+            return torch.from_numpy(self.stft[index]), torch.from_numpy(self.pretrained_phases[index]), torch.from_numpy(self.magnitude[index]), self.label[index]
 
         if self.mode == "stft":
             audio_sample_path = os.path.join(
@@ -87,17 +84,6 @@ class AvianNatureSounds(Dataset):
 
             # Clip the signal to the desired length
             signal = self.clip(signal, sr, self.length, offset='random')
-
-            # Depreciated STFT function
-            # stft = torch.stft(
-            #     signal,
-            #     n_fft=self.n_fft,
-            #     hop_length=self.hop_length,
-            #     win_length=self.n_fft,
-            #     normalized=False,
-            #     return_complex=True,
-            # )
-
             stft = librosa.stft(
                 signal,
                 n_fft=self.n_fft,
