@@ -89,6 +89,8 @@ class DeepGriffinLim(nn.Module):
         Returns:
             Tensor: STFT of the input signal.
         """
+        if hp.data_mode == 'gla-pretrain':
+            return torch.from_numpy(librosa.stft(x, n_fft=n_fft, hop_length=hop_size))
         return torch.stft(x, n_fft=n_fft, hop_length=hop_size, win_length=win_size, return_complex=True)
 
     def istft(self, x, n_fft=1024, hop_size=512, win_size=1024):
@@ -102,6 +104,8 @@ class DeepGriffinLim(nn.Module):
         Returns:
             Tensor: ISTFT of the input signal.
         """
+        if hp.data_mode == 'gla-pretrain':
+            return librosa.istft(x.numpy(), hop_length=hop_size)
         return torch.istft(x, n_fft=n_fft, hop_length=hop_size, win_length=win_size)
 
     def magswap(self, mag, x_tilda):
