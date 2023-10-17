@@ -7,7 +7,6 @@ from hyperparameter import hp
 # List of loss types
 loss_types = ['L1', 'phase', 'gdl', 'ifr', 'all_l1']
 
-
 num_gpus = torch.cuda.device_count()
 
 def is_gpu_available(gpu_id, memory_limit=30000, verbose=False):
@@ -30,13 +29,16 @@ def run_script(gpu_id, device, loss_type):
     script_name = "main.py"
     cmd = f"python3 {script_name} --device {device} --loss_type {loss_type}"
     try:
-        subprocess.run(cmd, shell=True, check=True)
+        # Use Popen instead of run
+        process = subprocess.Popen(cmd, shell=True)
+        return process  # Return the process
     except Exception as e:
         print(f"An error occurred while running the script: {str(e)}")
-        
-
+        return None
 
 if __name__ == '__main__':
+    processes = []  # List to store active processes
+
     while loss_types:
         for gpu_id in range(num_gpus):
             if len(loss_types) == 0:
@@ -48,7 +50,16 @@ if __name__ == '__main__':
                 device_tag = f'cuda:{str(gpu_id)}'
 
                 # Add code to run the main script
-                run_script(gpu_id, device_tag, loss_type)
+                process = run_script(gpu_id, device_tag, loss_type)
+                if process:
+                    processes.append(process)
+
+                # Wait for the process to finish if too many processes are active
+                while len(processes) >= num_gpus:
+                    for p in processes:
+                        if p.poll() is not None:  # Process has finished
+                            processes.remove(p)
+                    time.sleep(10)  # Sleep for a bit before checking again
 
             else:
                 time.sleep(10)
