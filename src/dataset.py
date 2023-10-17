@@ -50,9 +50,8 @@ class AvianNatureSounds(Dataset):
             n_iter=15,
             momentum=0.99,
         )
-        self.pretrained_phases = None
         self.pretrained = []
-        self.pretrained_phases = []
+        self.pretrained_stft = []
         self.original = []
         self.stft = []
         self.magnitude = []
@@ -65,7 +64,7 @@ class AvianNatureSounds(Dataset):
 
     def __getitem__(self, index):
         if hp.data_mode == "gla-pretrain":
-            return torch.from_numpy(self.stft[index]), torch.from_numpy(self.pretrained_phases[index]), torch.from_numpy(self.magnitude[index]), self.label[index]
+            return torch.from_numpy(self.stft[index]), torch.from_numpy(self.pretrained_stft[index]), torch.from_numpy(self.magnitude[index]), self.label[index]
 
         if self.mode == "stft":
             audio_sample_path = os.path.join(
@@ -147,10 +146,10 @@ class AvianNatureSounds(Dataset):
 
             self.original.append(signal)
             gla_pretrained = librosa.griffinlim(magnitude,n_iter=1, n_fft=1024, hop_length=512,length=signal.shape[1])
-            gla_pretrained_phase = np.angle(librosa.stft(gla_pretrained, n_fft=1024, hop_length=512))
+            gla_pretrained_stft = librosa.stft(gla_pretrained, n_fft=1024, hop_length=512)
 
             self.pretrained.append(gla_pretrained)
-            self.pretrained_phases.append(gla_pretrained_phase)
+            self.pretrained_stft.append(gla_pretrained_stft)
 
     @torch.no_grad()
     def clip(self, audio_signal, sr, desired_length, offset=None):
