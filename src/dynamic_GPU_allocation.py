@@ -6,7 +6,6 @@ from hyperparameter import hp
 
 # List of loss types
 loss_types = ['L1', 'phase', 'gdl', 'ifr', 'all_l1']
-loss_types = ['L1', 'phase']
 
 
 num_gpus = torch.cuda.device_count()
@@ -40,6 +39,8 @@ def run_script(gpu_id, device, loss_type):
 if __name__ == '__main__':
     while loss_types:
         for gpu_id in range(num_gpus):
+            if len(loss_types) == 0:
+                break
             if is_gpu_available(gpu_id):
                 loss_type = loss_types.pop(0)
 
