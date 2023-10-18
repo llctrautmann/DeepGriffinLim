@@ -27,7 +27,7 @@ class Hyperparameter:
     weight_decay: float = 0.0001
     learning_rate: float = 4e-5
     min_lr: float = 4e-7
-    epochs: int = 3
+    epochs: int = 50
     model_depth: int = 5
     data_mode = 'gla-pretrain'
     loss_type = 'phase'

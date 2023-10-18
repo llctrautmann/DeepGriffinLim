@@ -9,7 +9,7 @@ loss_types = ['L1', 'phase', 'gdl', 'ifr', 'all_l1']
 
 num_gpus = torch.cuda.device_count()
 
-def is_gpu_available(gpu_id, memory_limit=30000, verbose=False):
+def is_gpu_available(gpu_id, memory_limit=35000, verbose=False):
     try:
         result = subprocess.run(["nvidia-smi", "--query-gpu=memory.free", "--format=csv,nounits,noheader", f"--id={gpu_id}"],
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True)
